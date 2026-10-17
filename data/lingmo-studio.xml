@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/mlt+xml">
+    <comment>MLT video project</comment>
+    <comment xml:lang="pt_BR">Projeto de vídeo MLT</comment>
+    <sub-class-of type="application/xml"/>
+    <glob pattern="*.mlt"/>
+    <root-XML localName="mlt"/>
+  </mime-type>
+</mime-info>

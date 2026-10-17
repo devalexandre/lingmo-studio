@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Lingmo Studio
+GenericName=Video Editor
+GenericName[pt_BR]=Editor de vídeo
+Comment=Edit, color, mix and export videos
+Comment[pt_BR]=Edite, faça correção de cor, mixe e exporte vídeos
+Exec=lingmo-studio %F
+Icon=lingmo-studio
+Terminal=false
+Categories=AudioVideo;Video;AudioVideoEditing;
+MimeType=application/mlt+xml;video/mp4;video/x-m4v;video/quicktime;video/x-matroska;video/webm;video/x-msvideo;video/mpeg;video/mp2t;video/ogg;video/3gpp;video/x-flv;audio/mpeg;audio/mp4;audio/x-m4a;audio/aac;audio/flac;audio/x-flac;audio/ogg;audio/opus;audio/x-wav;audio/wav;audio/x-aiff;image/png;image/jpeg;image/webp;image/bmp;image/gif;image/tiff;image/svg+xml;application/x-subrip;
+Keywords=video;editor;edit;montage;timeline;mlt;color;grading;subtitles;
+Keywords[pt_BR]=vídeo;editor;edição;montagem;linha do tempo;mlt;cor;legendas;
+StartupNotify=true
+StartupWMClass=lingmo-studio

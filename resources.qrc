@@ -1,0 +1,28 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/Main.qml</file>
+        <file>qml/AudioPage.qml</file>
+        <file>qml/ClipItem.qml</file>
+        <file>qml/ColorPage.qml</file>
+        <file>qml/ColorWheel.qml</file>
+        <file>qml/CurvesEditor.qml</file>
+        <file>qml/DeliverPage.qml</file>
+        <file>qml/EditPage.qml</file>
+        <file>qml/EffectsPage.qml</file>
+        <file>qml/HistoryPanel.qml</file>
+        <file>qml/Inspector.qml</file>
+        <file>qml/KeyframeEditor.qml</file>
+        <file>qml/LevelMeter.qml</file>
+        <file>qml/LibraryPanel.qml</file>
+        <file>qml/MediaBinPanel.qml</file>
+        <file>qml/MonitorPanel.qml</file>
+        <file>qml/ParamEditor.qml</file>
+        <file>qml/ProjectSettingsDialog.qml</file>
+        <file>qml/ScopeView.qml</file>
+        <file>qml/SearchPanel.qml</file>
+        <file>qml/StartPage.qml</file>
+        <file>qml/StudioPanel.qml</file>
+        <file>qml/TimelinePanel.qml</file>
+        <file>qml/TrackHeader.qml</file>
+    </qresource>
+</RCC>
