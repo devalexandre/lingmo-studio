@@ -8,10 +8,13 @@
  */
 
 #include "timelineops.h"
+#include "captions.h"
 
 #include <QCoreApplication>
 #include <algorithm>
 #include <climits>
+#include <cmath>
+#include <limits>
 
 namespace Studio::Ops {
 
@@ -551,6 +554,19 @@ bool slide(Timeline &tl, const QString &clipId, int delta, const SourceLength &l
     return true;
 }
 
+// Caption clips: each half keeps the words that start inside it. Both halves
+// share the source origin, so the cut is at source frame right.in.
+static void splitCaptionWords(Clip &left, Clip &right)
+{
+    const double fps = Captions::clipFps(left);
+    const double cutMs = right.in * 1000.0 / fps;
+    QList<Captions::Word> a, b;
+    for (const Captions::Word &w : Captions::clipWords(left))
+        (w.startMs < cutMs ? a : b).append(w);
+    Captions::setClipWords(left, a);
+    Captions::setClipWords(right, b);
+}
+
 QString split(Timeline &tl, const QString &clipId, int frame, bool followLinks)
 {
     const auto [ti, ci] = tl.findClip(clipId);
@@ -575,6 +591,8 @@ QString split(Timeline &tl, const QString &clipId, int frame, bool followLinks)
     const QString oldLink = c.linkId;
     if (!oldLink.isEmpty())
         right.linkId = newId(QStringLiteral("l"));
+    if (Captions::isCaption(c))
+        splitCaptionWords(left, right);
     t.clips[ci] = left;
     t.clips.insert(ci + 1, right);
     normalizeTrack(t);
@@ -771,6 +789,182 @@ QString detachAudio(Timeline &tl, const QString &clipId, int audioTrack, QString
     t.clips.append(a);
     normalizeTrack(t);
     return a.id;
+}
+
+// ------------------------------------------------------------------ captions
+
+static Clip *captionClip(Timeline &tl, const QString &clipId, QString *error)
+{
+    const auto [ti, ci] = tl.findClip(clipId);
+    if (ti < 0 || !Captions::isCaption(tl.tracks.at(ti).clips.at(ci))) {
+        fail(error, QCoreApplication::translate("TimelineOps", "No such caption"));
+        return nullptr;
+    }
+    if (tl.tracks.at(ti).locked) {
+        fail(error, QCoreApplication::translate("TimelineOps", "The track is locked"));
+        return nullptr;
+    }
+    return &tl.tracks[ti].clips[ci];
+}
+
+bool setCaptionText(Timeline &tl, const QString &clipId, const QString &text, double fps, QString *error)
+{
+    Clip *c = captionClip(tl, clipId, error);
+    if (!c)
+        return false;
+    const QList<Captions::Word> old = Captions::clipWords(*c);
+    const QStringList parts = text.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (parts.isEmpty()) {
+        fail(error, QCoreApplication::translate("TimelineOps", "A caption needs some text"));
+        return false;
+    }
+    QList<Captions::Word> words;
+    if (parts.size() == old.size()) {
+        words = old; // same word count: keep every timing, fix the spelling
+        for (int i = 0; i < parts.size(); ++i)
+            words[i].text = parts.at(i);
+    } else {
+        // spread over the spoken span (or the clip when it had no words)
+        const double origin = Captions::originMs(*c, fps);
+        qint64 start = qint64(c->position * 1000.0 / fps - origin);
+        qint64 end = qint64(c->end() * 1000.0 / fps - origin);
+        if (!old.isEmpty()) {
+            start = std::max(start, old.first().startMs);
+            end = std::min(end, old.last().endMs);
+            if (end <= start)
+                end = start + 1;
+        }
+        words = Captions::spreadWords(parts.join(QLatin1Char(' ')), start, end);
+    }
+    if (words == old)
+        return false;
+    Captions::setClipWords(*c, words);
+    return true;
+}
+
+bool setCaptionWord(Timeline &tl, const QString &clipId, int index, const QString &text, QString *error)
+{
+    Clip *c = captionClip(tl, clipId, error);
+    if (!c)
+        return false;
+    QList<Captions::Word> words = Captions::clipWords(*c);
+    const QString t = text.simplified();
+    if (index < 0 || index >= words.size() || t.isEmpty() || t.contains(QLatin1Char(' ')) || words.at(index).text == t)
+        return false;
+    words[index].text = t;
+    Captions::setClipWords(*c, words);
+    return true;
+}
+
+bool toggleCaptionEmphasis(Timeline &tl, const QString &clipId, int index, QString *error)
+{
+    Clip *c = captionClip(tl, clipId, error);
+    if (!c)
+        return false;
+    QList<Captions::Word> words = Captions::clipWords(*c);
+    if (index < 0 || index >= words.size())
+        return false;
+    words[index].emphasis = !words.at(index).emphasis;
+    Captions::setClipWords(*c, words);
+    return true;
+}
+
+QString splitCaption(Timeline &tl, const QString &clipId, int wordIndex, double fps, QString *error)
+{
+    Clip *c = captionClip(tl, clipId, error);
+    if (!c)
+        return {};
+    const QList<Captions::Word> words = Captions::clipWords(*c);
+    if (wordIndex <= 0 || wordIndex >= words.size()) {
+        fail(error, QCoreApplication::translate("TimelineOps", "Choose a word in the middle of the caption"));
+        return {};
+    }
+    const double origin = Captions::originMs(*c, fps);
+    int frame = int(std::lround((origin + words.at(wordIndex).startMs) * fps / 1000.0));
+    frame = std::clamp(frame, c->position + 1, c->end() - 1);
+    if (frame <= c->position || frame >= c->end()) {
+        fail(error, QCoreApplication::translate("TimelineOps", "The caption is too short to split"));
+        return {};
+    }
+    c->genParams.insert(QStringLiteral("fps"), fps);
+    const QString id = clipId;
+    const QString right = split(tl, id, frame, false);
+    // split() assigns words by start time; make sure the chosen word opens the new cue
+    if (Clip *l = tl.clip(id)) {
+        if (Clip *r = tl.clip(right)) {
+            Captions::setClipWords(*l, words.mid(0, wordIndex));
+            Captions::setClipWords(*r, words.mid(wordIndex));
+        }
+    }
+    return right;
+}
+
+bool mergeCaptionWithNext(Timeline &tl, const QString &clipId, double fps, QString *error)
+{
+    Clip *c = captionClip(tl, clipId, error);
+    if (!c)
+        return false;
+    const auto [ti, ci] = tl.findClip(clipId);
+    Track &t = tl.tracks[ti];
+    if (ci + 1 >= t.clips.size() || !Captions::isCaption(t.clips.at(ci + 1))) {
+        fail(error, QCoreApplication::translate("TimelineOps", "There is no caption after this one"));
+        return false;
+    }
+    Clip a = t.clips.at(ci);
+    const Clip b = t.clips.at(ci + 1);
+    // b's words, moved to a's source origin
+    const double shift = Captions::originMs(b, fps) - Captions::originMs(a, fps);
+    QList<Captions::Word> words = Captions::clipWords(a);
+    for (Captions::Word w : Captions::clipWords(b)) {
+        w.startMs = qint64(std::llround(w.startMs + shift));
+        w.endMs = qint64(std::llround(w.endMs + shift));
+        words.append(w);
+    }
+    a.out = a.in + (b.end() - a.position) - 1;
+    Captions::setClipWords(a, words);
+    if (Captions::clipSpeaker(b) != Captions::clipSpeaker(a) && Captions::clipSpeaker(a) == 1)
+        a.genParams.remove(QStringLiteral("speaker"));
+    t.clips[ci] = a;
+    t.clips.removeAt(ci + 1);
+    normalizeTrack(t);
+    return true;
+}
+
+bool nudgeCaptionWord(Timeline &tl, const QString &clipId, int index, qint64 deltaMs, QString *error)
+{
+    Clip *c = captionClip(tl, clipId, error);
+    if (!c)
+        return false;
+    QList<Captions::Word> words = Captions::clipWords(*c);
+    if (index < 0 || index >= words.size() || deltaMs == 0)
+        return false;
+    Captions::Word &w = words[index];
+    const qint64 lo = index > 0 ? words.at(index - 1).startMs + 1 : std::numeric_limits<qint64>::min() / 2;
+    const qint64 hi = index + 1 < words.size() ? words.at(index + 1).startMs - 1 : std::numeric_limits<qint64>::max() / 2;
+    const qint64 len = w.endMs - w.startMs;
+    const qint64 start = std::clamp(w.startMs + deltaMs, lo, hi);
+    if (start == w.startMs)
+        return false;
+    w.startMs = start;
+    w.endMs = start + len;
+    if (index > 0 && words.at(index - 1).endMs > w.startMs)
+        words[index - 1].endMs = w.startMs;
+    if (index + 1 < words.size() && w.endMs > words.at(index + 1).startMs)
+        w.endMs = words.at(index + 1).startMs;
+    Captions::setClipWords(*c, words);
+    return true;
+}
+
+bool setCaptionSpeaker(Timeline &tl, const QString &clipId, int speaker, QString *error)
+{
+    Clip *c = captionClip(tl, clipId, error);
+    if (!c || (speaker != 1 && speaker != 2) || Captions::clipSpeaker(*c) == speaker)
+        return false;
+    if (speaker == 2)
+        c->genParams.insert(QStringLiteral("speaker"), 2);
+    else
+        c->genParams.remove(QStringLiteral("speaker"));
+    return true;
 }
 
 } // namespace Studio::Ops

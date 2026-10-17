@@ -11,6 +11,9 @@
 //   image://thumb/<mediaId>/<frame>     video frame thumbnails (memory cache)
 //   image://wave/<mediaId>/<in>/<out>   audio waveform of a source range
 //   image://scope/<kind>/<serial>       latest scope image (see scopes.h)
+//   image://captionpreview/<ms>/<WxH>/<style JSON, percent-encoded>
+//                                       a sample caption rendered by libass (MLT
+//                                       avfilter.ass), exactly as preview/export draw it
 
 #pragma once
 
@@ -40,4 +43,12 @@ class ScopeProvider : public QQuickAsyncImageProvider
 {
 public:
     QQuickImageResponse *requestImageResponse(const QString &id, const QSize &requestedSize) override;
+};
+
+class CaptionPreviewProvider : public QQuickAsyncImageProvider
+{
+public:
+    QQuickImageResponse *requestImageResponse(const QString &id, const QSize &requestedSize) override;
+    // Renders the sample at `ms` (transparent background when `transparent`)
+    static QImage render(const QVariantMap &style, qint64 ms, const QSize &size, bool transparent = false);
 };

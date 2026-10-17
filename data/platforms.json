@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "updated": "2026-10",
+  "notes": [
+    "Presets for 'Gerar cortes' (automatic Shorts/Reels). Edit this file to follow platform changes; Lingmo Studio reads it at start.",
+    "Lookup order: $LINGMO_STUDIO_PLATFORMS, ~/.local/share/lingmo-studio/platforms.json, /usr/share/lingmo-studio/platforms.json, the copy built into the app.",
+    "maxSeconds = hard upload/post limit of the format; recommended = editable default range used to pick highlights (not a platform rule).",
+    "safeArea = share of the frame (0..1) covered by the platform's interface on each side; captions and key content stay inside.",
+    "Limits come from each platform's help center / creative specs as of the 'updated' date (see 'source' per entry). Platforms change them often: verify before relying on a number."
+  ],
+  "platforms": [
+    {
+      "id": "tiktok",
+      "name": "TikTok",
+      "aspect": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "maxSeconds": 600,
+      "recommended": [21, 60],
+      "safeArea": { "top": 0.08, "bottom": 0.2, "left": 0.06, "right": 0.14 },
+      "exportPreset": "shorts-9x16",
+      "source": "TikTok Help Center 'Uploading videos' (up to 10 min recorded/uploaded in app; 60 min from the web uploader) and TikTok Ads 'Safe zone' spec (right action bar, bottom caption area). Recommended 21-60 s: TikTok Creative Center best practices."
+    },
+    {
+      "id": "instagram-reels",
+      "name": "Instagram Reels",
+      "aspect": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "maxSeconds": 180,
+      "recommended": [15, 90],
+      "safeArea": { "top": 0.14, "bottom": 0.35, "left": 0.06, "right": 0.06 },
+      "exportPreset": "shorts-9x16",
+      "source": "Instagram Help Center: Reels up to 3 minutes (since Jan 2025). Safe area: Meta Business Help 'Reels ads safe zones' (keep ~14% top, ~35% bottom, 6% sides free). Recommended range: Meta creative best practices (short, hook in the first 3 s)."
+    },
+    {
+      "id": "youtube-shorts",
+      "name": "YouTube Shorts",
+      "aspect": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "maxSeconds": 180,
+      "recommended": [15, 60],
+      "safeArea": { "top": 0.08, "bottom": 0.25, "left": 0.05, "right": 0.12 },
+      "exportPreset": "shorts-9x16",
+      "source": "YouTube Help 'Upload YouTube Shorts': square or vertical videos up to 3 minutes (since Oct 2024). Safe area: YouTube Shorts overlay (title/channel at the bottom, actions on the right)."
+    },
+    {
+      "id": "facebook-reels",
+      "name": "Facebook Reels",
+      "aspect": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "maxSeconds": 90,
+      "recommended": [15, 60],
+      "safeArea": { "top": 0.14, "bottom": 0.35, "left": 0.06, "right": 0.06 },
+      "exportPreset": "shorts-9x16",
+      "source": "Facebook Help Center 'Create a reel' (Reels feed: up to 90 s). Meta (2025) merged Facebook videos into Reels; longer uploads post as video, not in the Reels feed. Safe area: Meta 'Reels ads safe zones'."
+    },
+    {
+      "id": "kwai",
+      "name": "Kwai",
+      "aspect": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "maxSeconds": 600,
+      "recommended": [15, 60],
+      "safeArea": { "top": 0.08, "bottom": 0.22, "left": 0.06, "right": 0.14 },
+      "exportPreset": "shorts-9x16",
+      "source": "Kwai creator help (in-app camera up to 60 s; uploads from the gallery up to 10 min, depending on the account). Kwai for Business ad specs: 9:16, 1080x1920. Safe area assumed like TikTok (same interface layout)."
+    },
+    {
+      "id": "linkedin-square",
+      "name": "LinkedIn 1:1",
+      "aspect": "1:1",
+      "width": 1080,
+      "height": 1080,
+      "fps": 30,
+      "maxSeconds": 600,
+      "recommended": [30, 90],
+      "safeArea": { "top": 0.05, "bottom": 0.1, "left": 0.05, "right": 0.05 },
+      "exportPreset": "mp4-h264",
+      "source": "LinkedIn Help 'Share videos on LinkedIn': up to 10 min (15 min from desktop), aspect 1:2.4 to 2.4:1. LinkedIn Marketing Solutions video ad specs: 1:1 1080x1080; best results 30-90 s."
+    },
+    {
+      "id": "linkedin-portrait",
+      "name": "LinkedIn 4:5",
+      "aspect": "4:5",
+      "width": 1080,
+      "height": 1350,
+      "fps": 30,
+      "maxSeconds": 600,
+      "recommended": [30, 90],
+      "safeArea": { "top": 0.05, "bottom": 0.1, "left": 0.05, "right": 0.05 },
+      "exportPreset": "mp4-h264",
+      "source": "LinkedIn Marketing Solutions video ad specs: vertical 4:5 1080x1350 for the mobile feed; same length limits as 1:1."
+    },
+    {
+      "id": "x",
+      "name": "X",
+      "aspect": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "maxSeconds": 140,
+      "recommended": [15, 45],
+      "safeArea": { "top": 0.06, "bottom": 0.18, "left": 0.05, "right": 0.12 },
+      "exportPreset": "shorts-9x16",
+      "source": "X Help 'How to share and watch videos': up to 2 min 20 s (140 s) without X Premium; 1:2.39 to 2.39:1, vertical 9:16 shows full screen in the immersive player."
+    },
+    {
+      "id": "stories",
+      "name": "Stories (Instagram e WhatsApp)",
+      "aspect": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "maxSeconds": 60,
+      "recommended": [15, 60],
+      "safeArea": { "top": 0.14, "bottom": 0.2, "left": 0.06, "right": 0.06 },
+      "exportPreset": "shorts-9x16",
+      "source": "Instagram Help 'Stories': each story segment up to 60 s. WhatsApp Help 'How to use Status': videos up to 60 s per update (since 2024). Safe area: Meta 'Stories ads safe zones' (14% top, 20% bottom)."
+    }
+  ]
+}

@@ -151,9 +151,14 @@ StudioPanel {
         MenuItem { text: qsTr("Cut out silence"); enabled: clipMenu.target.hasAudio === true; onTriggered: editor.splitOnSilence(clipMenu.target.id, -35, 0.6, true) }
         MenuItem { text: qsTr("Split at scene changes"); enabled: clipMenu.target.mediaKind === "video"; onTriggered: editor.splitOnScenes(clipMenu.target.id, 0.35) }
         MenuItem {
-            text: editor.whisperAvailable ? qsTr("Automatic subtitles") : qsTr("Automatic subtitles (install whisper.cpp)")
-            enabled: editor.whisperAvailable && clipMenu.target.hasAudio === true
-            onTriggered: editor.autoSubtitles(clipMenu.target.id, "")
+            text: qsTr("Automatic captions…")
+            enabled: clipMenu.target.hasAudio === true && clipMenu.target.kind === "media"
+            onTriggered: root.openCaptions(clipMenu.target.id)
+        }
+        MenuItem {
+            text: qsTr("Generate cuts for Shorts/Reels…")
+            enabled: clipMenu.target.kind === "media" && clipMenu.target.mediaKind === "video"
+            onTriggered: root.openShorts(clipMenu.target.mediaId)
         }
     }
     function openClipMenu(info, frame) {

@@ -8,10 +8,15 @@
  */
 
 #include "plan.h"
+#include "captions.h"
 #include "effects.h"
 
 #include <QColor>
+#include <QCryptographicHash>
+#include <QDir>
 #include <QFileInfo>
+#include <QSaveFile>
+#include <QStandardPaths>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QRegularExpression>
@@ -47,6 +52,8 @@ int RenderPlan::producerIndex(const QString &key) const
 
 Planner::Planner(const ProjectSettings &settings, const QList<MediaItem> &media, const QList<Sequence> &sequences, PlanOptions options)
     : m_settings(settings)
+    , m_fullWidth(settings.width)
+    , m_fullHeight(settings.height)
     , m_options(options)
 {
     if (m_options.scale > 0 && std::abs(m_options.scale - 1.0) > 1e-6) {
@@ -108,7 +115,7 @@ int Planner::sourceLength(const Clip &clip) const
 int Planner::producerFor(RenderPlan &plan, const Clip &clip, int depth) const
 {
     ProducerSpec spec;
-    if (clip.kind == QLatin1String("title")) {
+    if (clip.kind == QLatin1String("title") || clip.kind == Captions::ClipKind) {
         spec.key = QStringLiteral("color:#00000000");
         spec.service = QStringLiteral("color");
         spec.resource = QStringLiteral("#00000000");
@@ -281,6 +288,9 @@ void Planner::planTrack(RenderPlan &plan, const Track &track, bool soloActive, i
             ts.props.append({QStringLiteral("studio:volume"), formatNumber(track.volumeDb)});
         if (track.pan != 0)
             ts.props.append({QStringLiteral("studio:pan"), formatNumber(track.pan)});
+        if (!track.captionStyle.isEmpty())
+            ts.props.append({QStringLiteral("studio:captionstyle"),
+                             QString::fromUtf8(QJsonDocument(QJsonObject::fromVariantMap(track.captionStyle)).toJson(QJsonDocument::Compact))});
     }
     if (track.volumeDb != 0) {
         FilterSpec f;
@@ -425,6 +435,8 @@ RenderPlan Planner::planInternal(const Timeline &timeline, int depth) const
 
     for (const Track *t : std::as_const(order)) {
         planTrack(plan, *t, soloActive, depth);
+        if (t->kind == TrackKind::Subtitle && !t->hidden)
+            captionFilter(plan, *t);
         const int index = plan.tracks.size() - 1;
         TransitionSpec mix;
         mix.service = QStringLiteral("mix");
@@ -442,6 +454,47 @@ RenderPlan Planner::planInternal(const Timeline &timeline, int depth) const
         }
     }
     return plan;
+}
+
+// Caption tracks render through libass (avfilter.ass) on the composited
+// frame, so preview and export use the same renderer at any size. The ASS
+// file is written next to the other generated files, named by its content.
+QString Planner::captionFile(const QString &ass) const
+{
+    QString dir = m_options.captionDir;
+    if (dir.isEmpty())
+        dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/captions");
+    QDir().mkpath(dir);
+    const QString hash = QString::fromLatin1(QCryptographicHash::hash(ass.toUtf8(), QCryptographicHash::Sha1).toHex().left(16));
+    const QString path = QDir(dir).filePath(QStringLiteral("captions-%1.ass").arg(hash));
+    if (!QFileInfo::exists(path)) {
+        QSaveFile f(path);
+        if (f.open(QIODevice::WriteOnly)) {
+            f.write(ass.toUtf8());
+            f.commit();
+        }
+    }
+    return path;
+}
+
+void Planner::captionFilter(RenderPlan &plan, const Track &track) const
+{
+    if (!Captions::trackHasCaptions(track))
+        return;
+    // the project size, not the (scaled) preview size: libass scales the script to the frame
+    const int w = m_fullWidth;
+    const int h = m_fullHeight;
+    const Captions::Style style = Captions::Style::fromMap(track.captionStyle);
+    const QList<Captions::Cue> cues = Captions::trackCues(track, m_settings.fps(), style, w, h);
+    if (cues.isEmpty())
+        return;
+    FilterSpec f;
+    f.service = QStringLiteral("avfilter.ass");
+    f.props = {{QStringLiteral("av.filename"), captionFile(Captions::toAss(cues, style, w, h, m_settings.fps()))},
+               {QStringLiteral("av.alpha"), QStringLiteral("1")}};
+    if (m_options.storeModel)
+        f.props.append({QStringLiteral("studio:captions"), track.id});
+    plan.filters.append(f);
 }
 
 RenderPlan Planner::plan(const Timeline &timeline, const QList<Marker> &markers) const

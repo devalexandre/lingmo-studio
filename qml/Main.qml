@@ -31,6 +31,15 @@ LingmoUI.Window {
     readonly property var pageIds: ["edit", "color", "effects", "audio", "deliver"]
     property int page: Math.max(0, pageIds.indexOf(startPage))
     property bool showStart: startPage.length === 0 && editor.mediaBin.count === 0 && editor.timeline.duration <= 1
+    property bool showShorts: startPage === "shorts"
+
+    function openCaptions(clipId) { captionsDialog.openFor(clipId) }
+    function openShorts(mediaId) {
+        if (mediaId)
+            editor.shorts.mediaId = mediaId
+        showStart = false
+        showShorts = true
+    }
     property bool closeConfirmed: false
     // Edit tools: select, razor, ripple, roll, slip, slide
     property string tool: "select"
@@ -55,7 +64,11 @@ LingmoUI.Window {
             LingmoUI.Theme.darkMode = Qt.binding(function() { return LingmoTheme.dark })
         }
     }
-    Component.onCompleted: applyTheme()
+    Component.onCompleted: {
+        applyTheme()
+        if (startPage === "captions")
+            Qt.callLater(function() { captionsDialog.openFor("") })
+    }
     Connections {
         target: editor
         function onDarkUiChanged() { root.applyTheme() }
@@ -130,6 +143,18 @@ LingmoUI.Window {
     }
 
     ProjectSettingsDialog { id: settingsDialog }
+    CaptionsDialog { id: captionsDialog }
+    FileDialog {
+        id: captionExportDialog
+        title: qsTr("Export captions")
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "srt"
+        nameFilters: [qsTr("SubRip (*.srt)"), qsTr("WebVTT (*.vtt)"), qsTr("Advanced SubStation (*.ass)")]
+        onAccepted: {
+            const f = String(selectedFile)
+            editor.exportCaptions(selectedFile, f.endsWith(".vtt") ? "vtt" : f.endsWith(".ass") ? "ass" : "srt")
+        }
+    }
 
     Dialog {
         id: unsavedDialog
@@ -191,7 +216,10 @@ LingmoUI.Window {
         MenuSeparator {}
         MenuItem { text: qsTr("Import media…"); onTriggered: importDialog.open() }
         MenuItem { text: qsTr("Import subtitles (SRT)…"); onTriggered: srtOpenDialog.open() }
-        MenuItem { text: qsTr("Export subtitles (SRT)…"); onTriggered: srtSaveDialog.open() }
+        MenuItem { text: qsTr("Export captions (SRT, VTT, ASS)…"); onTriggered: captionExportDialog.open() }
+        MenuSeparator {}
+        MenuItem { text: qsTr("Generate cuts (Shorts/Reels)…"); onTriggered: root.openShorts("") }
+        MenuItem { text: qsTr("Automatic captions…"); onTriggered: root.openCaptions("") }
         MenuSeparator {}
         MenuItem { text: qsTr("Project settings…"); onTriggered: settingsDialog.open() }
         MenuItem {
@@ -271,8 +299,10 @@ LingmoUI.Window {
         keys: ["text/uri-list"]
         onDropped: function(drop) {
             if (drop.hasUrls) {
+                // on the cuts page a dropped video becomes the one to cut
                 editor.importUrls(drop.urls)
-                root.showStart = false
+                if (!root.showShorts)
+                    root.showStart = false
             }
         }
     }
@@ -313,6 +343,7 @@ LingmoUI.Window {
             Item { Layout.fillWidth: true }
             LingmoUI.SegmentedControl {
                 id: pages
+                opacity: root.showShorts ? 0.5 : 1
                 model: [
                     { text: qsTr("Edit"), iconName: "video-x-generic" },
                     { text: qsTr("Color"), iconName: "color-management" },
@@ -321,13 +352,24 @@ LingmoUI.Window {
                     { text: qsTr("Deliver"), iconName: "document-export" }
                 ]
                 currentIndex: root.page
-                onActivated: function(index) { root.page = index; root.showStart = false }
+                onActivated: function(index) { root.page = index; root.showStart = false; root.showShorts = false }
             }
             Item { Layout.fillWidth: true }
             LingmoUI.Spinner {
                 running: editor.busyTask.length > 0 || editor.mediaBin.importing > 0 || editor.renderQueue.running
                 visible: running
                 size: LingmoUI.Units.iconSizes.small
+            }
+            LingmoUI.ActionButton {
+                text: qsTr("Generate cuts")
+                iconName: "edit-cut"
+                tipText: qsTr("Shorts, Reels and TikToks from a long video")
+                onClicked: root.showShorts ? (root.showShorts = false) : root.openShorts("")
+            }
+            LingmoUI.IconButton {
+                iconName: "format-text-color"
+                tipText: qsTr("Automatic captions")
+                onClicked: root.openCaptions("")
             }
             LingmoUI.IconButton {
                 iconName: "edit-undo"
@@ -369,7 +411,7 @@ LingmoUI.Window {
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: root.showStart ? 5 : root.page
+            currentIndex: root.showShorts ? 6 : root.showStart ? 5 : root.page
 
             EditPage { }
             ColorPage { active: root.page === 1 && !root.showStart }
@@ -379,6 +421,10 @@ LingmoUI.Window {
             StartPage {
                 onDone: root.showStart = false
                 onOpenRequested: openDialog.open()
+                onShortsRequested: root.openShorts("")
+            }
+            ShortsPage {
+                onBack: root.showShorts = false
             }
         }
 

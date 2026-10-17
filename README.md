@@ -18,8 +18,23 @@ with the Lingmo interface (Qt 6 / QML, `LingmoUI.CompatibleModule`).
 * **Audio** — mixer with volume, pan, mute and solo per track; volume and pan
   keyframes; EQ, compressor, noise reduction, auto loudness; one-click
   normalisation to −14 LUFS; waveforms; voice-over recording.
-* **Local analysis** — automatic subtitles with whisper.cpp or faster-whisper
-  (when installed), cut silence, split at scene changes, reframe to 9:16,
+* **Gerar cortes (Shorts/Reels)** — drop in a long video, pick TikTok,
+  Instagram Reels, YouTube Shorts, Facebook Reels, Kwai, LinkedIn (1:1, 4:5), X
+  or Stories; the video is transcribed, split on sentences, scored (local LLM
+  through Ollama when configured in Settings › AI, otherwise audio energy,
+  speech density, scene changes and pauses) and shown as cards to play, trim
+  and pick. Each pick becomes a vertical sequence, reframed by following the
+  face (OpenCV, optional) as editable Position X keyframes, with captions.
+  Batch export: one file per cut and platform, plus `.srt`. Platform limits
+  live in `data/platforms.json` (edit it to follow platform changes).
+* **Captions synced to speech** — word timestamps from whisper.cpp or
+  faster-whisper; readability rules (characters per line, 1–2 lines, CPS,
+  duration limits, phrase-aware line breaks, platform safe areas); nine styles
+  (Clássica, Caixa, Karaokê, Destaque, Palavra a palavra, Podcast, Neon, Alto
+  contraste, Duas cores) rendered by libass for preview and export alike;
+  words stay editable (text, split/merge, nudge, speaker, keywords) and cue
+  edges drag on the timeline. Export burned in, or SRT, VTT and ASS.
+* **Local analysis** — cut silence, split at scene changes, reframe to 9:16,
   search clips by spoken words. Nothing leaves the computer.
 * **Deliver** — MP4 H.264/AAC (default), YouTube 1080p, 4K HEVC, AV1, WebM VP9,
   Shorts/Reels/TikTok 9:16, ProRes 422 HQ, DNxHR HQ, GIF, MP3, WAV; NVENC and
@@ -37,8 +52,18 @@ ctest --test-dir build   # needs ffmpeg and melt
 
 Runtime: `mlt ffmpeg frei0r-plugins fftw sdl2 libxml2 libsamplerate vid.stab
 qt6-base qt6-declarative qt6-svg LingmoUI lingmo-qt-plugins`.
-Optional: `whisper.cpp` (with a ggml model) or `whisper-ctranslate2`
-(faster-whisper) for automatic subtitles.
+Optional, checked at run time:
+
+* `whisper-cpp` (official repos: `sudo pacman -S whisper-cpp`) plus a ggml
+  model downloaded in Lingmo Settings › AI › Transcrição e legendas
+  (`~/.local/share/lingmo/whisper-models/ggml-<model>.bin`), or
+  `whisper-ctranslate2` (faster-whisper, pipx/AUR) — captions and cuts.
+  Studio reads `subtitle_backend`, `subtitle_model` and `subtitle_language`
+  from `~/.config/lingmoos/ai.conf`.
+* `python-opencv` — face tracking for the vertical reframe
+  (`data/facetrack.py`); without it the crop is centred.
+* Ollama with a model chosen in Settings › AI — scores the cuts and writes
+  hook titles; without it a heuristic decides.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

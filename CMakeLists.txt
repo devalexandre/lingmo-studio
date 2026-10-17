@@ -10,21 +10,25 @@ include(GNUInstallDirs)
 
 option(BUILD_TESTING "Build the tests" ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Concurrent Widgets Qml Quick LinguistTools)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Concurrent Network Widgets Qml Quick LinguistTools)
 find_package(Mlt7 REQUIRED)
 
 # Editing core: model, operations, MLT plan/XML/builder, export, analysis.
 # No QML here, so the tests link it directly.
 add_library(studio-core STATIC
     src/core/aitools.cpp
+    src/core/captions.cpp
     src/core/effects.cpp
     src/core/exporter.cpp
+    src/core/highlights.cpp
     src/core/mediaprobe.cpp
     src/core/mltbuilder.cpp
     src/core/mltxml.cpp
     src/core/model.cpp
     src/core/plan.cpp
+    src/core/platforms.cpp
     src/core/projectio.cpp
+    src/core/reframe.cpp
     src/core/timelineops.cpp
 )
 target_include_directories(studio-core PUBLIC src/core)
@@ -41,9 +45,11 @@ add_library(studio-app STATIC
     src/app/scopes.cpp
     src/app/imageproviders.cpp
     src/app/recorder.cpp
+    src/app/shorts.cpp
+    src/app/transcriber.cpp
 )
 target_include_directories(studio-app PUBLIC src/app)
-target_link_libraries(studio-app PUBLIC studio-core Qt6::Core Qt6::Gui Qt6::Concurrent Qt6::Qml Qt6::Quick)
+target_link_libraries(studio-app PUBLIC studio-core Qt6::Core Qt6::Gui Qt6::Concurrent Qt6::Network Qt6::Qml Qt6::Quick)
 
 add_executable(lingmo-studio
     src/app/main.cpp
@@ -67,22 +73,32 @@ install(TARGETS lingmo-studio RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES lingmo-studio.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES data/lingmo-studio.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/mime/packages)
 install(FILES data/lingmo-studio.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+# Social platform presets (editable) and the optional OpenCV subject tracker
+install(FILES data/platforms.json DESTINATION ${CMAKE_INSTALL_DATADIR}/lingmo-studio)
+install(PROGRAMS data/facetrack.py DESTINATION ${CMAKE_INSTALL_DATADIR}/lingmo-studio)
 
 if(BUILD_TESTING)
     enable_testing()
     find_package(Qt6 REQUIRED COMPONENTS Test)
-    foreach(t tst_timeline tst_projectio tst_export tst_aitools)
+    foreach(t tst_timeline tst_projectio tst_export tst_aitools tst_captions tst_shorts)
         add_executable(${t} tests/${t}.cpp)
         target_link_libraries(${t} PRIVATE studio-core Qt6::Test)
-        target_compile_definitions(${t} PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch")
+        target_compile_definitions(${t} PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch"
+            TEST_DATA="${CMAKE_CURRENT_SOURCE_DIR}/data" TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
         add_test(NAME ${t} COMMAND ${t})
         set_tests_properties(${t} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LC_ALL=C")
     endforeach()
+    target_link_libraries(tst_shorts PRIVATE Qt6::Network)
     add_executable(tst_editor tests/tst_editor.cpp)
     target_link_libraries(tst_editor PRIVATE studio-app Qt6::Test)
     target_compile_definitions(tst_editor PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch")
     add_test(NAME tst_editor COMMAND tst_editor)
     set_tests_properties(tst_editor PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LC_ALL=C;SDL_AUDIODRIVER=dummy" TIMEOUT 300)
+    add_executable(tst_shortsflow tests/tst_shortsflow.cpp)
+    target_link_libraries(tst_shortsflow PRIVATE studio-app Qt6::Test)
+    target_compile_definitions(tst_shortsflow PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch" TEST_DATA="${CMAKE_CURRENT_SOURCE_DIR}/data")
+    add_test(NAME tst_shortsflow COMMAND tst_shortsflow)
+    set_tests_properties(tst_shortsflow PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LC_ALL=C;SDL_AUDIODRIVER=dummy" TIMEOUT 600)
     # developer tool: builds a demo project from media files (screenshots)
     add_executable(demo_project tests/demo_project.cpp)
     target_link_libraries(demo_project PRIVATE studio-core Qt6::Gui)

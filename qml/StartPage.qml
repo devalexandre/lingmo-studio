@@ -17,6 +17,7 @@ Item {
     id: start
     signal done()
     signal openRequested()
+    signal shortsRequested()
 
     RowLayout {
         anchors.centerIn: parent
@@ -55,6 +56,30 @@ Item {
                             Label { text: modelData.name; font.pointSize: LingmoUI.Units.fontSubheading; font.bold: true; color: LingmoUI.Theme.textColor }
                             Label { text: modelData.description; font.pointSize: LingmoUI.Units.fontCaption; color: LingmoUI.Theme.secondaryTextColor; elide: Text.ElideRight; Layout.fillWidth: true }
                         }
+                    }
+                }
+            }
+            LingmoUI.Card {
+                Layout.fillWidth: true
+                implicitHeight: 74
+                clickable: true
+                liftOnHover: true
+                highlighted: true
+                onClicked: start.shortsRequested()
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: LingmoUI.Units.largeSpacing
+                    spacing: LingmoUI.Units.largeSpacing
+                    LingmoUI.IconItem {
+                        source: "edit-cut"
+                        implicitWidth: LingmoUI.Units.iconSizes.medium
+                        implicitHeight: LingmoUI.Units.iconSizes.medium
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Label { text: qsTr("Generate cuts from a long video"); font.pointSize: LingmoUI.Units.fontSubheading; font.bold: true; color: LingmoUI.Theme.textColor }
+                        Label { text: qsTr("Vertical clips for TikTok, Reels and Shorts, with captions, found by local AI"); font.pointSize: LingmoUI.Units.fontCaption; color: LingmoUI.Theme.secondaryTextColor; elide: Text.ElideRight; Layout.fillWidth: true }
                     }
                 }
             }

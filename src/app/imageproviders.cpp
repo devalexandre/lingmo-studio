@@ -8,10 +8,20 @@
  */
 
 #include "imageproviders.h"
+#include "captions.h"
 #include "mediaprobe.h"
 #include "scopes.h"
 
 #include <QCache>
+#include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSaveFile>
+#include <QStandardPaths>
+#include <QUrl>
+#include <mlt++/Mlt.h>
 #include <QFile>
 #include <QMutex>
 #include <QPainter>
@@ -181,5 +191,107 @@ QQuickImageResponse *ScopeProvider::requestImageResponse(const QString &id, cons
     return start([kind]() -> QImage {
         const QImage img = Scopes::latest(kind);
         return img.isNull() ? placeholder(QSize(256, 256)) : img;
+    });
+}
+
+// ------------------------------------------------------------------ caption previews
+
+QImage CaptionPreviewProvider::render(const QVariantMap &styleMap, qint64 ms, const QSize &size, bool transparent)
+{
+    using namespace Studio::Captions;
+    const Style style = Style::fromMap(styleMap);
+    const int w = std::max(16, size.width() / 2 * 2), h = std::max(16, size.height() / 2 * 2);
+    // Two short cues, the second by "speaker 2", 400 ms per word
+    const QStringList text = QCoreApplication::translate("Captions", "Captions everyone can read easily").split(QLatin1Char(' '));
+    const int half = std::max(1, int(text.size() / 2));
+    QList<Cue> cues;
+    for (int part = 0; part < 2; ++part) {
+        Cue c;
+        c.speaker = part + 1;
+        const int from = part * half, to = part == 0 ? half : int(text.size());
+        for (int i = from; i < to; ++i)
+            c.words.append({i * 400LL, i * 400LL + 330, text.at(i)});
+        if (c.words.isEmpty())
+            continue;
+        c.startMs = c.words.first().startMs;
+        c.endMs = part == 0 ? to * 400LL : to * 400LL + 600;
+        const Rules r = style.effectiveRules(w, h);
+        c.lines = breakLines(c.words, r.maxCharsPerLine, r.maxLines);
+        if (c.lines.isEmpty())
+            c.lines = wrapLines(c.words, r.maxCharsPerLine);
+        cues.append(c);
+    }
+    if (!cues.isEmpty() && style.effect != QLatin1String("twocolor"))
+        cues.last().speaker = 1;
+    const QString ass = toAss(cues, style, w, h, 30);
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/captions");
+    QDir().mkpath(dir);
+    const QString file = QDir(dir).filePath(QStringLiteral("preview-%1.ass").arg(QString::fromLatin1(QCryptographicHash::hash(ass.toUtf8(), QCryptographicHash::Sha1).toHex().left(16))));
+    if (!QFile::exists(file)) {
+        QSaveFile f(file);
+        if (f.open(QIODevice::WriteOnly)) {
+            f.write(ass.toUtf8());
+            f.commit();
+        }
+    }
+
+    QImage out(w, h, QImage::Format_ARGB32_Premultiplied);
+    if (transparent) {
+        out.fill(Qt::transparent);
+    } else {
+        // a neutral "video" behind the sample
+        QPainter p(&out);
+        QLinearGradient g(0, 0, w, h);
+        g.setColorAt(0, QColor(0x3a, 0x4a, 0x5c));
+        g.setColorAt(1, QColor(0x14, 0x1a, 0x24));
+        p.fillRect(out.rect(), g);
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(255, 255, 255, 28));
+        p.drawEllipse(QPointF(w * 0.5, h * 0.36), std::min(w, h) * 0.18, std::min(w, h) * 0.22);
+        p.drawRoundedRect(QRectF(w * 0.22, h * 0.56, w * 0.56, h * 0.5), w * 0.2, w * 0.2);
+    }
+    Mlt::Profile profile;
+    profile.set_width(w);
+    profile.set_height(h);
+    profile.set_frame_rate(30, 1);
+    profile.set_sample_aspect(1, 1);
+    profile.set_display_aspect(w, h);
+    profile.set_progressive(1);
+    profile.set_explicit(1);
+    Mlt::Producer bg(profile, "color:#00000000");
+    Mlt::Filter filter(profile, "avfilter.ass");
+    if (!bg.is_valid() || !filter.is_valid())
+        return out;
+    filter.set("av.filename", file.toUtf8().constData());
+    filter.set("av.alpha", 1);
+    bg.attach(filter);
+    bg.seek(int(ms * 30 / 1000));
+    std::unique_ptr<Mlt::Frame> frame(bg.get_frame());
+    if (!frame)
+        return out;
+    mlt_image_format fmt = mlt_image_rgba;
+    int fw = w, fh = h;
+    const uint8_t *img = frame->get_image(fmt, fw, fh);
+    if (!img || fw != w || fh != h)
+        return out;
+    const QImage text_(img, fw, fh, fw * 4, QImage::Format_RGBA8888);
+    QPainter p(&out);
+    p.drawImage(0, 0, text_);
+    p.end();
+    return out;
+}
+
+QQuickImageResponse *CaptionPreviewProvider::requestImageResponse(const QString &id, const QSize &requestedSize)
+{
+    return start([id, requestedSize]() -> QImage {
+        // <ms>/<WxH>/<style json>
+        const qint64 ms = id.section(QLatin1Char('/'), 0, 0).toLongLong();
+        const QString dims = id.section(QLatin1Char('/'), 1, 1);
+        QSize size(dims.section(QLatin1Char('x'), 0, 0).toInt(), dims.section(QLatin1Char('x'), 1, 1).toInt());
+        if (size.width() <= 0 || size.height() <= 0)
+            size = requestedSize.isValid() ? requestedSize : QSize(270, 480);
+        const QString json = QUrl::fromPercentEncoding(id.section(QLatin1Char('/'), 2).toUtf8());
+        const QVariantMap style = QJsonDocument::fromJson(json.toUtf8()).object().toVariantMap();
+        return render(style, ms, size.boundedTo(QSize(1080, 1920)));
     });
 }

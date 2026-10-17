@@ -187,6 +187,10 @@ QStringList Exporter::meltArguments(const QString &projectFile, const Settings &
     // Output geometry: preset size wins; keep the project's aspect for "width only"
     if (!p.audioOnly) {
         int w = p.width, h = p.height;
+        if (w <= 0) { // project size, explicit (see the frame rate below)
+            w = project.width;
+            h = project.height;
+        }
         if (w > 0 && h <= 0) {
             h = int(std::lround(double(w) * project.height / project.width / 2.0)) * 2;
         }
@@ -199,10 +203,10 @@ QStringList Exporter::meltArguments(const QString &projectFile, const Settings &
             setArg(consumer, QStringLiteral("sample_aspect_num"), QStringLiteral("1"));
             setArg(consumer, QStringLiteral("sample_aspect_den"), QStringLiteral("1"));
         }
-        if (p.fps > 0) {
-            setArg(consumer, QStringLiteral("frame_rate_num"), QString::number(p.fps));
-            setArg(consumer, QStringLiteral("frame_rate_den"), QStringLiteral("1"));
-        }
+        // Always explicit: filters melt creates while loading the project (avfilter.ass for
+        // captions) otherwise time their frames with melt's default 25 fps profile
+        setArg(consumer, QStringLiteral("frame_rate_num"), QString::number(p.fps > 0 ? p.fps : project.fpsNum));
+        setArg(consumer, QStringLiteral("frame_rate_den"), p.fps > 0 ? QStringLiteral("1") : QString::number(project.fpsDen));
         setArg(consumer, QStringLiteral("progressive"), QStringLiteral("1"));
         setArg(consumer, QStringLiteral("rescale"), QStringLiteral("bicubic"));
     }

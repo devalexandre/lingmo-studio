@@ -48,6 +48,7 @@ static void applyIconTheme(bool darkUi)
         const bool dark = darkUi || theme.value(QStringLiteral("DarkMode"), false).toBool();
         const QStringList candidates = {
             theme.value(dark ? QStringLiteral("DarkIconTheme") : QStringLiteral("IconTheme")).toString(),
+            dark ? QStringLiteral("Lingmo-dark") : QStringLiteral("Lingmo"),
             dark ? QStringLiteral("Crule-dark") : QStringLiteral("Crule"),
             dark ? QStringLiteral("breeze-dark") : QStringLiteral("breeze"),
             QStringLiteral("breeze"),
@@ -99,13 +100,14 @@ int main(int argc, char *argv[])
     parser.setApplicationDescription(QStringLiteral("Lingmo Studio, video editor (MLT)"));
     parser.addHelpOption();
     parser.addVersionOption();
-    QCommandLineOption page(QStringLiteral("page"), QStringLiteral("Open on a page: edit, color, effects, audio, deliver"), QStringLiteral("page"));
+    QCommandLineOption page(QStringLiteral("page"), QStringLiteral("Open on a page: edit, color, effects, audio, deliver, shorts, captions"), QStringLiteral("page"));
     QCommandLineOption quitAfter(QStringLiteral("quit-after"), QStringLiteral("Quit after N seconds (tests)"), QStringLiteral("seconds"));
     QCommandLineOption play(QStringLiteral("play"), QStringLiteral("Start playing after loading"));
     QCommandLineOption seek(QStringLiteral("seek"), QStringLiteral("Move the playhead to a frame after loading"), QStringLiteral("frame"));
     QCommandLineOption select(QStringLiteral("select-first"), QStringLiteral("Select the first clip after loading (tests)"));
     QCommandLineOption exportTo(QStringLiteral("export"), QStringLiteral("Queue an export of the loaded project to FILE (MP4 preset)"), QStringLiteral("file"));
-    parser.addOptions({page, quitAfter, play, seek, select, exportTo});
+    QCommandLineOption findCuts(QStringLiteral("find-cuts"), QStringLiteral("Look for Shorts/Reels cuts in the first imported video (tests)"));
+    parser.addOptions({page, quitAfter, play, seek, select, exportTo, findCuts});
     parser.addPositionalArgument(QStringLiteral("files"), QStringLiteral("Project (.mlt) or media files to open"));
     parser.process(app);
 
@@ -119,6 +121,7 @@ int main(int argc, char *argv[])
     engine.addImageProvider(QStringLiteral("thumb"), new ThumbnailProvider);
     engine.addImageProvider(QStringLiteral("wave"), new WaveformProvider);
     engine.addImageProvider(QStringLiteral("scope"), new ScopeProvider);
+    engine.addImageProvider(QStringLiteral("captionpreview"), new CaptionPreviewProvider);
     engine.rootContext()->setContextProperty(QStringLiteral("editor"), &editor);
     engine.rootContext()->setContextProperty(QStringLiteral("startPage"), parser.value(page));
     engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
@@ -133,7 +136,7 @@ int main(int argc, char *argv[])
             absolute << QFileInfo(f).absoluteFilePath();
         editor.importPaths(absolute, -2);
     }
-    if (parser.isSet(seek) || parser.isSet(play) || parser.isSet(select) || parser.isSet(exportTo)) {
+    if (parser.isSet(seek) || parser.isSet(play) || parser.isSet(select) || parser.isSet(exportTo) || parser.isSet(findCuts)) {
         // after imports (probing runs in the background)
         auto *poll = new QTimer(&app);
         poll->setInterval(200);
@@ -154,6 +157,11 @@ int main(int argc, char *argv[])
                     editor.player()->seek(parser.value(seek).toInt());
                 if (parser.isSet(play))
                     editor.player()->play();
+                if (parser.isSet(findCuts) && !editor.media().isEmpty()) {
+                    auto *shorts = editor.shortsObject();
+                    shorts->setProperty("mediaId", editor.media().first().id);
+                    QMetaObject::invokeMethod(shorts, "analyze");
+                }
                 if (parser.isSet(exportTo))
                     editor.queueExport(QStringLiteral("mp4-h264"), QUrl::fromLocalFile(QFileInfo(parser.value(exportTo)).absoluteFilePath()), true, -1, false);
             });

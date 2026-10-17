@@ -65,6 +65,21 @@ QString freezeFrame(Timeline &tl, const QString &clipId, int frame, int length);
 // Moves the audio of a video clip to an audio track (linked), muting it on the video clip.
 QString detachAudio(Timeline &tl, const QString &clipId, int audioTrack, QString *error = nullptr);
 
+// Captions (clips of kind "caption", see captions.h). Times keep in sync:
+// words stay where they were spoken; fps converts frames and ms.
+// New text with the same number of words keeps every timing; otherwise the
+// words are spread over the spoken span.
+bool setCaptionText(Timeline &tl, const QString &clipId, const QString &text, double fps, QString *error = nullptr);
+bool setCaptionWord(Timeline &tl, const QString &clipId, int index, const QString &text, QString *error = nullptr);
+bool toggleCaptionEmphasis(Timeline &tl, const QString &clipId, int index, QString *error = nullptr);
+// Splits before word `wordIndex` (at its start frame). Returns the new clip id.
+QString splitCaption(Timeline &tl, const QString &clipId, int wordIndex, double fps, QString *error = nullptr);
+// Joins the caption with the next one on the track (gap included)
+bool mergeCaptionWithNext(Timeline &tl, const QString &clipId, double fps, QString *error = nullptr);
+// Moves one word's timing (between its neighbours)
+bool nudgeCaptionWord(Timeline &tl, const QString &clipId, int index, qint64 deltaMs, QString *error = nullptr);
+bool setCaptionSpeaker(Timeline &tl, const QString &clipId, int speaker, QString *error = nullptr);
+
 // Keyframe helpers (linear interpolation of numeric values)
 QVariantMap valuesAt(const QList<Keyframe> &kfs, const QVariantMap &base, int frame);
 void setKeyframe(QList<Keyframe> &kfs, int frame, const QVariantMap &values);

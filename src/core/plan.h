@@ -93,6 +93,8 @@ struct PlanOptions {
     // Preview: render at this fraction of the project size (MLT profile and
     // pixel-valued effect parameters are scaled together)
     double scale = 1.0;
+    // Where generated caption (.ass) files go; empty = cache/captions
+    QString captionDir;
 };
 
 class Planner
@@ -113,8 +115,12 @@ private:
     QList<FilterSpec> clipFilters(const Clip &clip, const Track &track, int depth) const;
     void planTrack(RenderPlan &plan, const Track &track, bool soloActive, int depth) const;
     RenderPlan planInternal(const Timeline &timeline, int depth) const;
+    void captionFilter(RenderPlan &plan, const Track &track) const;
+    QString captionFile(const QString &ass) const;
 
     ProjectSettings m_settings;
+    int m_fullWidth = 1920; // project size before the preview scale
+    int m_fullHeight = 1080;
     QHash<QString, MediaItem> m_media;
     QHash<QString, Sequence> m_sequences;
     PlanOptions m_options;

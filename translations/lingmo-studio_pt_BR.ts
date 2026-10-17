@@ -85,6 +85,286 @@
     </message>
 </context>
 <context>
+    <name>CandidateCard</name>
+    <message>
+        <source>Pause</source>
+        <translation>Pausar</translation>
+    </message>
+    <message>
+        <source>Play this cut</source>
+        <translation>Reproduzir este corte</translation>
+    </message>
+    <message>
+        <source>%1 pts</source>
+        <translation>%1 pts</translation>
+    </message>
+    <message>
+        <source>Local AI</source>
+        <translation>IA local</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Início</translation>
+    </message>
+    <message>
+        <source>Start earlier</source>
+        <translation>Começar antes</translation>
+    </message>
+    <message>
+        <source>Start later</source>
+        <translation>Começar depois</translation>
+    </message>
+    <message>
+        <source>End</source>
+        <translation>Fim</translation>
+    </message>
+    <message>
+        <source>End earlier</source>
+        <translation>Terminar antes</translation>
+    </message>
+    <message>
+        <source>End later</source>
+        <translation>Terminar depois</translation>
+    </message>
+</context>
+<context>
+    <name>CaptionInspector</name>
+    <message>
+        <source>Caption</source>
+        <translation>Legenda</translation>
+    </message>
+    <message>
+        <source>Style…</source>
+        <translation>Estilo…</translation>
+    </message>
+    <message>
+        <source>Caption text</source>
+        <translation>Texto da legenda</translation>
+    </message>
+    <message>
+        <source>Fixing the spelling keeps every word&apos;s timing. Adding or removing words spreads them over the spoken time.</source>
+        <translation>Corrigir a grafia mantém o tempo de cada palavra. Acrescentar ou tirar palavras redistribui o texto pelo tempo da fala.</translation>
+    </message>
+    <message>
+        <source>Words</source>
+        <translation>Palavras</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
+        <source>Earlier (50 ms)</source>
+        <translation>Antes (50 ms)</translation>
+    </message>
+    <message>
+        <source>Later (50 ms)</source>
+        <translation>Depois (50 ms)</translation>
+    </message>
+    <message>
+        <source>Keyword (colored in the Podcast style)</source>
+        <translation>Palavra-chave (colorida no estilo Podcast)</translation>
+    </message>
+    <message>
+        <source>New caption from this word</source>
+        <translation>Nova legenda a partir desta palavra</translation>
+    </message>
+    <message>
+        <source>Speaker</source>
+        <translation>Quem fala</translation>
+    </message>
+    <message>
+        <source>Person 1</source>
+        <translation>Pessoa 1</translation>
+    </message>
+    <message>
+        <source>Person 2</source>
+        <translation>Pessoa 2</translation>
+    </message>
+    <message>
+        <source>Merge with the next caption</source>
+        <translation>Juntar com a próxima legenda</translation>
+    </message>
+</context>
+<context>
+    <name>Captions</name>
+    <message>
+        <source>Captions everyone can read easily</source>
+        <translation>Legendas que todo mundo lê fácil</translation>
+    </message>
+    <message>
+        <source>Classic</source>
+        <translation>Clássica</translation>
+    </message>
+    <message>
+        <source>Box</source>
+        <translation>Caixa</translation>
+    </message>
+    <message>
+        <source>Karaoke</source>
+        <translation>Karaokê</translation>
+    </message>
+    <message>
+        <source>Highlight</source>
+        <translation>Destaque</translation>
+    </message>
+    <message>
+        <source>Word by word</source>
+        <translation>Palavra a palavra</translation>
+    </message>
+    <message>
+        <source>Bold podcast style</source>
+        <translation>Bold estilo podcast</translation>
+    </message>
+    <message>
+        <source>Neon glow</source>
+        <translation>Neon</translation>
+    </message>
+    <message>
+        <source>High contrast (accessible)</source>
+        <translation>Alto contraste (acessível)</translation>
+    </message>
+    <message>
+        <source>Two colors (speakers)</source>
+        <translation>Duas cores (quem fala)</translation>
+    </message>
+</context>
+<context>
+    <name>CaptionsDialog</name>
+    <message>
+        <source>Captions</source>
+        <translation>Legendas</translation>
+    </message>
+    <message>
+        <source>Export captions</source>
+        <translation>Exportar legendas</translation>
+    </message>
+    <message>
+        <source>WebVTT (*.vtt)</source>
+        <translation>WebVTT (*.vtt)</translation>
+    </message>
+    <message>
+        <source>Advanced SubStation (*.ass)</source>
+        <translation>Advanced SubStation (*.ass)</translation>
+    </message>
+    <message>
+        <source>SubRip (*.srt)</source>
+        <translation>SubRip (*.srt)</translation>
+    </message>
+    <message>
+        <source>Style</source>
+        <translation>Estilo</translation>
+    </message>
+    <message>
+        <source>Look</source>
+        <translation>Aparência</translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation>Posição</translation>
+    </message>
+    <message>
+        <source>Bottom</source>
+        <translation>Embaixo</translation>
+    </message>
+    <message>
+        <source>Middle</source>
+        <translation>Meio</translation>
+    </message>
+    <message>
+        <source>Top</source>
+        <translation>Em cima</translation>
+    </message>
+    <message>
+        <source>Size: %1%</source>
+        <translation>Tamanho: %1%</translation>
+    </message>
+    <message>
+        <source>Colors</source>
+        <translation>Cores</translation>
+    </message>
+    <message>
+        <source>Text</source>
+        <translation>Texto</translation>
+    </message>
+    <message>
+        <source>Highlight</source>
+        <translation>Destaque</translation>
+    </message>
+    <message>
+        <source>Outline</source>
+        <translation>Contorno</translation>
+    </message>
+    <message>
+        <source>Capital letters</source>
+        <translation>Letras maiúsculas</translation>
+    </message>
+    <message>
+        <source>Readability</source>
+        <translation>Leitura</translation>
+    </message>
+    <message>
+        <source>Lines per caption</source>
+        <translation>Linhas por legenda</translation>
+    </message>
+    <message>
+        <source>1 line</source>
+        <translation>1 linha</translation>
+    </message>
+    <message>
+        <source>2 lines</source>
+        <translation>2 linhas</translation>
+    </message>
+    <message>
+        <source>Characters per line</source>
+        <translation>Caracteres por linha</translation>
+    </message>
+    <message>
+        <source>auto</source>
+        <translation>auto</translation>
+    </message>
+    <message>
+        <source>Characters per second</source>
+        <translation>Caracteres por segundo</translation>
+    </message>
+    <message>
+        <source>Lines break at phrase boundaries and never leave a single word alone. Captions stay at least %1 s on screen and avoid the platform&apos;s buttons.</source>
+        <translation>As linhas quebram entre frases e nunca deixam uma palavra sozinha. Cada legenda fica pelo menos %1 s na tela e foge dos botões da plataforma.</translation>
+    </message>
+    <message>
+        <source>Rules apply when captions are generated.</source>
+        <translation>As regras valem ao gerar as legendas.</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>Exportar</translation>
+    </message>
+    <message>
+        <source>Style changes apply to the captions on the timeline right away.</source>
+        <translation>Mudanças de estilo valem na hora para as legendas da linha do tempo.</translation>
+    </message>
+    <message>
+        <source>Captions are added for the selected clip, or the first clip with speech.</source>
+        <translation>As legendas são feitas para o clipe selecionado ou o primeiro clipe com fala.</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Fechar</translation>
+    </message>
+    <message>
+        <source>Generate again</source>
+        <translation>Gerar de novo</translation>
+    </message>
+    <message>
+        <source>Generate captions</source>
+        <translation>Gerar legendas</translation>
+    </message>
+</context>
+<context>
     <name>ClipItem</name>
     <message>
         <source>ramp</source>
@@ -630,7 +910,7 @@
         <translation>Coloque o cursor sobre o clipe</translation>
     </message>
     <message>
-        <source>This effect can't be animated</source>
+        <source>This effect can&apos;t be animated</source>
         <translation>Este efeito não pode ser animado</translation>
     </message>
     <message>
@@ -710,36 +990,67 @@
         <translation>Sonoridade era %1 LUFS, ganho de %2 dB</translation>
     </message>
     <message>
-        <source>Install whisper.cpp (whisper-cli and a model) or faster-whisper for automatic subtitles</source>
-        <translation>Instale o whisper.cpp (whisper-cli e um modelo) ou o faster-whisper para legendas automáticas</translation>
+        <source>Captions need the clip at normal speed</source>
+        <translation>As legendas precisam do clipe na velocidade normal</translation>
+    </message>
+    <message>
+        <source>The clip was removed</source>
+        <translation>O clipe foi removido</translation>
+    </message>
+    <message>
+        <source>Automatic captions</source>
+        <translation>Legendas automáticas</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n caption(s) added</source>
+        <translation>
+            <numerusform>%n legenda adicionada</numerusform>
+            <numerusform>%n legendas adicionadas</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No speech was found in this clip</source>
+        <translation>Nenhuma fala encontrada neste clipe</translation>
+    </message>
+    <message>
+        <source>Caption style</source>
+        <translation>Estilo das legendas</translation>
+    </message>
+    <message>
+        <source>Edit caption</source>
+        <translation>Editar legenda</translation>
+    </message>
+    <message>
+        <source>Split caption</source>
+        <translation>Dividir legenda</translation>
+    </message>
+    <message>
+        <source>Merge captions</source>
+        <translation>Juntar legendas</translation>
+    </message>
+    <message>
+        <source>Move word</source>
+        <translation>Mover palavra</translation>
+    </message>
+    <message>
+        <source>Caption speaker</source>
+        <translation>Quem fala na legenda</translation>
+    </message>
+    <message>
+        <source>Caption keyword</source>
+        <translation>Palavra-chave da legenda</translation>
+    </message>
+    <message>
+        <source>Could not write %1</source>
+        <translation>Não foi possível gravar %1</translation>
+    </message>
+    <message>
+        <source>Captions saved</source>
+        <translation>Legendas salvas</translation>
     </message>
     <message>
         <source>Select a clip with speech</source>
         <translation>Selecione um clipe com fala</translation>
-    </message>
-    <message>
-        <source>Extracting speech…</source>
-        <translation>Extraindo a fala…</translation>
-    </message>
-    <message>
-        <source>Could not read the audio</source>
-        <translation>Não foi possível ler o áudio</translation>
-    </message>
-    <message>
-        <source>Transcribing (local)…</source>
-        <translation>Transcrevendo (localmente)…</translation>
-    </message>
-    <message>
-        <source>Transcription failed</source>
-        <translation>A transcrição falhou</translation>
-    </message>
-    <message>
-        <source>Automatic subtitles</source>
-        <translation>Legendas automáticas</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n subtitle(s) added</source>
-        <translation><numerusform>%n legenda adicionada</numerusform><numerusform>%n legendas adicionadas</numerusform></translation>
     </message>
     <message>
         <source>Could not read the subtitles</source>
@@ -758,6 +1069,40 @@
         <translation>Legendas salvas</translation>
     </message>
     <message>
+        <source>Generate cuts</source>
+        <translation>Gerar cortes</translation>
+    </message>
+    <message>
+        <source>Cut</source>
+        <translation>Corte</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n cut(s) created: double-click one on the timeline to edit it</source>
+        <translation>
+            <numerusform>%n corte criado: dê dois cliques nele na linha do tempo para editar</numerusform>
+            <numerusform>%n cortes criados: dê dois cliques em um deles na linha do tempo para editar</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Follow the subject</source>
+        <translation>Seguir a pessoa</translation>
+    </message>
+    <message>
+        <source>Cuts</source>
+        <translation>Cortes</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n export(s) added to the render queue</source>
+        <translation>
+            <numerusform>%n exportação adicionada à fila</numerusform>
+            <numerusform>%n exportações adicionadas à fila</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>There are no generated cuts to export</source>
+        <translation>Não há cortes gerados para exportar</translation>
+    </message>
+    <message>
         <source>Select a clip with sound at normal speed</source>
         <translation>Selecione um clipe com som em velocidade normal</translation>
     </message>
@@ -771,7 +1116,10 @@
     </message>
     <message numerus="yes">
         <source>%n silent part(s) handled</source>
-        <translation><numerusform>%n trecho silencioso tratado</numerusform><numerusform>%n trechos silenciosos tratados</numerusform></translation>
+        <translation>
+            <numerusform>%n trecho silencioso tratado</numerusform>
+            <numerusform>%n trechos silenciosos tratados</numerusform>
+        </translation>
     </message>
     <message>
         <source>No silence found</source>
@@ -791,7 +1139,10 @@
     </message>
     <message numerus="yes">
         <source>%n scene cut(s) found</source>
-        <translation><numerusform>%n corte de cena encontrado</numerusform><numerusform>%n cortes de cena encontrados</numerusform></translation>
+        <translation>
+            <numerusform>%n corte de cena encontrado</numerusform>
+            <numerusform>%n cortes de cena encontrados</numerusform>
+        </translation>
     </message>
     <message>
         <source>No scene cuts found</source>
@@ -1275,7 +1626,10 @@
     </message>
     <message numerus="yes">
         <source>%n clips selected</source>
-        <translation><numerusform>%n clipe selecionado</numerusform><numerusform>%n clipes selecionados</numerusform></translation>
+        <translation>
+            <numerusform>%n clipe selecionado</numerusform>
+            <numerusform>%n clipes selecionados</numerusform>
+        </translation>
     </message>
     <message>
         <source>Nothing selected</source>
@@ -1322,7 +1676,7 @@
         <translation>Transição</translation>
     </message>
     <message>
-        <source>Play this clip's sound</source>
+        <source>Play this clip&apos;s sound</source>
         <translation>Tocar o som deste clipe</translation>
     </message>
     <message>
@@ -1374,7 +1728,10 @@
     </message>
     <message numerus="yes">
         <source>%n keyframe(s)</source>
-        <translation><numerusform>%n quadro-chave</numerusform><numerusform>%n quadros-chave</numerusform></translation>
+        <translation>
+            <numerusform>%n quadro-chave</numerusform>
+            <numerusform>%n quadros-chave</numerusform>
+        </translation>
     </message>
     <message>
         <source>Add Transform, Crop, Text or Volume to a clip to animate it</source>
@@ -1593,15 +1950,31 @@ Seu Nome</translation>
         <translation>Matriz</translation>
     </message>
     <message>
+        <source>Export captions</source>
+        <translation>Exportar legendas</translation>
+    </message>
+    <message>
+        <source>SubRip (*.srt)</source>
+        <translation>SubRip (*.srt)</translation>
+    </message>
+    <message>
+        <source>WebVTT (*.vtt)</source>
+        <translation>WebVTT (*.vtt)</translation>
+    </message>
+    <message>
+        <source>Advanced SubStation (*.ass)</source>
+        <translation>Advanced SubStation (*.ass)</translation>
+    </message>
+    <message>
         <source>Save changes to %1?</source>
         <translation>Salvar as alterações em %1?</translation>
     </message>
     <message>
-        <source>Your changes will be lost if you don't save them.</source>
+        <source>Your changes will be lost if you don&apos;t save them.</source>
         <translation>Suas alterações serão perdidas se você não salvar.</translation>
     </message>
     <message>
-        <source>Don't save</source>
+        <source>Don&apos;t save</source>
         <translation>Não salvar</translation>
     </message>
     <message>
@@ -1637,8 +2010,16 @@ Seu Nome</translation>
         <translation>Importar legendas (SRT)…</translation>
     </message>
     <message>
-        <source>Export subtitles (SRT)…</source>
-        <translation>Exportar legendas (SRT)…</translation>
+        <source>Export captions (SRT, VTT, ASS)…</source>
+        <translation>Exportar legendas (SRT, VTT, ASS)…</translation>
+    </message>
+    <message>
+        <source>Generate cuts (Shorts/Reels)…</source>
+        <translation>Gerar cortes (Shorts/Reels)…</translation>
+    </message>
+    <message>
+        <source>Automatic captions…</source>
+        <translation>Legendas automáticas…</translation>
     </message>
     <message>
         <source>Project settings…</source>
@@ -1683,6 +2064,18 @@ Seu Nome</translation>
     <message>
         <source>Deliver</source>
         <translation>Entregar</translation>
+    </message>
+    <message>
+        <source>Generate cuts</source>
+        <translation>Gerar cortes</translation>
+    </message>
+    <message>
+        <source>Shorts, Reels and TikToks from a long video</source>
+        <translation>Shorts, Reels e TikToks a partir de um vídeo longo</translation>
+    </message>
+    <message>
+        <source>Automatic captions</source>
+        <translation>Legendas automáticas</translation>
     </message>
     <message>
         <source>Undo %1</source>
@@ -1780,7 +2173,10 @@ Seu Nome</translation>
     </message>
     <message numerus="yes">
         <source>%n item(s)</source>
-        <translation><numerusform>%n item</numerusform><numerusform>%n itens</numerusform></translation>
+        <translation>
+            <numerusform>%n item</numerusform>
+            <numerusform>%n itens</numerusform>
+        </translation>
     </message>
     <message>
         <source>proxy</source>
@@ -2083,6 +2479,249 @@ Seu Nome</translation>
     </message>
 </context>
 <context>
+    <name>ShortsGenerator</name>
+    <message>
+        <source>Choose a video with speech.</source>
+        <translation>Escolha um vídeo com fala.</translation>
+    </message>
+    <message>
+        <source>Choose at least one platform.</source>
+        <translation>Escolha pelo menos uma plataforma.</translation>
+    </message>
+    <message>
+        <source>Transcribing…</source>
+        <translation>Transcrevendo…</translation>
+    </message>
+    <message>
+        <source>ffmpeg is not installed</source>
+        <translation>O ffmpeg não está instalado</translation>
+    </message>
+    <message>
+        <source>The video is no longer in the project.</source>
+        <translation>O vídeo não está mais no projeto.</translation>
+    </message>
+    <message>
+        <source>Listening for pauses and loud moments…</source>
+        <translation>Procurando pausas e momentos mais fortes…</translation>
+    </message>
+    <message>
+        <source>Measuring the energy of the audio…</source>
+        <translation>Medindo a energia do áudio…</translation>
+    </message>
+    <message>
+        <source>Finding scene changes…</source>
+        <translation>Procurando mudanças de cena…</translation>
+    </message>
+    <message>
+        <source>No speech was found in this video.</source>
+        <translation>Nenhuma fala encontrada neste vídeo.</translation>
+    </message>
+    <message>
+        <source>The video is too short for these platforms.</source>
+        <translation>O vídeo é curto demais para essas plataformas.</translation>
+    </message>
+    <message>
+        <source>Asking the local AI (%1)…</source>
+        <translation>Consultando a IA local (%1)…</translation>
+    </message>
+    <message>
+        <source>Scoring with %1 (%2 of %3)…</source>
+        <translation>Avaliando com %1 (%2 de %3)…</translation>
+    </message>
+    <message>
+        <source>opens with a hook</source>
+        <translation>começa com um gancho</translation>
+    </message>
+    <message>
+        <source>lively speech</source>
+        <translation>fala animada</translation>
+    </message>
+    <message>
+        <source>louder than the rest</source>
+        <translation>mais forte que o resto</translation>
+    </message>
+    <message>
+        <source>visual changes</source>
+        <translation>mudanças visuais</translation>
+    </message>
+    <message>
+        <source>ends on a complete sentence</source>
+        <translation>termina numa frase completa</translation>
+    </message>
+    <message>
+        <source>has long pauses</source>
+        <translation>tem pausas longas</translation>
+    </message>
+    <message>
+        <source>Fits the length</source>
+        <translation>Cabe na duração</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n cut(s) found</source>
+        <translation>
+            <numerusform>%n corte encontrado</numerusform>
+            <numerusform>%n cortes encontrados</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation>Cancelado</translation>
+    </message>
+    <message>
+        <source>Following faces for the vertical crop…</source>
+        <translation>Seguindo os rostos para o enquadramento vertical…</translation>
+    </message>
+</context>
+<context>
+    <name>ShortsPage</name>
+    <message>
+        <source>Choose a long video</source>
+        <translation>Escolha um vídeo longo</translation>
+    </message>
+    <message>
+        <source>Export the cuts to</source>
+        <translation>Exportar os cortes para</translation>
+    </message>
+    <message>
+        <source>Generate cuts</source>
+        <translation>Gerar cortes</translation>
+    </message>
+    <message>
+        <source>Shorts, Reels and TikToks from a long video</source>
+        <translation>Shorts, Reels e TikToks a partir de um vídeo longo</translation>
+    </message>
+    <message>
+        <source>Video</source>
+        <translation>Vídeo</translation>
+    </message>
+    <message>
+        <source>No video in the project</source>
+        <translation>Nenhum vídeo no projeto</translation>
+    </message>
+    <message>
+        <source>Import a video</source>
+        <translation>Importar um vídeo</translation>
+    </message>
+    <message>
+        <source>Length %1</source>
+        <translation>Duração %1</translation>
+    </message>
+    <message>
+        <source>Platforms</source>
+        <translation>Plataformas</translation>
+    </message>
+    <message>
+        <source>%1 · up to %2</source>
+        <translation>%1 · até %2</translation>
+    </message>
+    <message>
+        <source>Cuts of %1 to %2 seconds, on sentence boundaries.</source>
+        <translation>Cortes de %1 a %2 segundos, sem cortar frases.</translation>
+    </message>
+    <message>
+        <source>These platforms use different shapes. Cuts are edited in the first one&apos;s shape; the export reframes each file for its platform.</source>
+        <translation>Essas plataformas usam formatos diferentes. Os cortes são editados no formato da primeira; a exportação reenquadra cada arquivo para a sua plataforma.</translation>
+    </message>
+    <message>
+        <source>Options</source>
+        <translation>Opções</translation>
+    </message>
+    <message>
+        <source>How many cuts</source>
+        <translation>Quantos cortes</translation>
+    </message>
+    <message>
+        <source>Captions synced to the speech</source>
+        <translation>Legendas sincronizadas com a fala</translation>
+    </message>
+    <message>
+        <source>Reframe following faces</source>
+        <translation>Reenquadrar seguindo o rosto</translation>
+    </message>
+    <message>
+        <source>Face tracking needs OpenCV for Python (python-opencv). Without it the crop stays centered; move it with Position X keyframes.</source>
+        <translation>Seguir rostos precisa do OpenCV para Python (python-opencv). Sem ele o enquadramento fica no centro; ajuste com keyframes de Posição X.</translation>
+    </message>
+    <message>
+        <source>Find cuts again</source>
+        <translation>Procurar cortes de novo</translation>
+    </message>
+    <message>
+        <source>Find the best moments</source>
+        <translation>Encontrar os melhores momentos</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Suggested cuts</source>
+        <translation>Cortes sugeridos</translation>
+    </message>
+    <message>
+        <source>Cuts</source>
+        <translation>Cortes</translation>
+    </message>
+    <message>
+        <source>Scored by %1 (local)</source>
+        <translation>Avaliado por %1 (local)</translation>
+    </message>
+    <message>
+        <source>Scored by sound, speech and scenes</source>
+        <translation>Avaliado por som, fala e cenas</translation>
+    </message>
+    <message>
+        <source>Ready to find the best moments</source>
+        <translation>Pronto para encontrar os melhores momentos</translation>
+    </message>
+    <message>
+        <source>Bring a long video</source>
+        <translation>Traga um vídeo longo</translation>
+    </message>
+    <message>
+        <source>Lingmo Studio transcribes the video on this computer, splits it on sentences and scores each moment. You pick, trim and turn them into vertical clips.</source>
+        <translation>O Lingmo Studio transcreve o vídeo neste computador, separa por frases e dá uma nota para cada momento. Você escolhe, ajusta e transforma em clipes verticais.</translation>
+    </message>
+    <message>
+        <source>Import an interview, a class, a podcast or a live stream. Everything runs on this computer.</source>
+        <translation>Importe uma entrevista, uma aula, um podcast ou uma live. Tudo roda neste computador.</translation>
+    </message>
+    <message>
+        <source>Import video…</source>
+        <translation>Importar vídeo…</translation>
+    </message>
+    <message>
+        <source>Following faces for the vertical crop…</source>
+        <translation>Seguindo os rostos para o enquadramento vertical…</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n cut(s) selected</source>
+        <translation>
+            <numerusform>%n corte selecionado</numerusform>
+            <numerusform>%n cortes selecionados</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Export all cuts…</source>
+        <translation>Exportar todos os cortes…</translation>
+    </message>
+    <message numerus="yes">
+        <source>Create %n cut(s)</source>
+        <translation>
+            <numerusform>Criar %n corte</numerusform>
+            <numerusform>Criar %n cortes</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>Prévia</translation>
+    </message>
+    <message>
+        <source>Press play on a cut to watch it here</source>
+        <translation>Aperte play em um corte para assistir aqui</translation>
+    </message>
+</context>
+<context>
     <name>StartPage</name>
     <message>
         <source>New project</source>
@@ -2091,6 +2730,14 @@ Seu Nome</translation>
     <message>
         <source>Start from a template; sizes can change later in Project settings.</source>
         <translation>Comece de um modelo; o tamanho pode mudar depois em Configurações do projeto.</translation>
+    </message>
+    <message>
+        <source>Generate cuts from a long video</source>
+        <translation>Gerar cortes de um vídeo longo</translation>
+    </message>
+    <message>
+        <source>Vertical clips for TikTok, Reels and Shorts, with captions, found by local AI</source>
+        <translation>Clipes verticais para TikTok, Reels e Shorts, com legendas, escolhidos por IA local</translation>
     </message>
     <message>
         <source>Empty project</source>
@@ -2160,7 +2807,7 @@ Seu Nome</translation>
         <translation>A faixa está travada</translation>
     </message>
     <message>
-        <source>This clip can't go on an audio track</source>
+        <source>This clip can&apos;t go on an audio track</source>
         <translation>Este clipe não pode ir numa faixa de áudio</translation>
     </message>
     <message>
@@ -2194,6 +2841,26 @@ Seu Nome</translation>
     <message>
         <source>This clip has no attached audio</source>
         <translation>Este clipe não tem áudio anexado</translation>
+    </message>
+    <message>
+        <source>No such caption</source>
+        <translation>Legenda não encontrada</translation>
+    </message>
+    <message>
+        <source>A caption needs some text</source>
+        <translation>A legenda precisa de algum texto</translation>
+    </message>
+    <message>
+        <source>Choose a word in the middle of the caption</source>
+        <translation>Escolha uma palavra no meio da legenda</translation>
+    </message>
+    <message>
+        <source>The caption is too short to split</source>
+        <translation>A legenda é curta demais para dividir</translation>
+    </message>
+    <message>
+        <source>There is no caption after this one</source>
+        <translation>Não há legenda depois desta</translation>
     </message>
 </context>
 <context>
@@ -2279,12 +2946,12 @@ Seu Nome</translation>
         <translation>Dividir nas mudanças de cena</translation>
     </message>
     <message>
-        <source>Automatic subtitles</source>
-        <translation>Legendas automáticas</translation>
+        <source>Automatic captions…</source>
+        <translation>Legendas automáticas…</translation>
     </message>
     <message>
-        <source>Automatic subtitles (install whisper.cpp)</source>
-        <translation>Legendas automáticas (instale o whisper.cpp)</translation>
+        <source>Generate cuts for Shorts/Reels…</source>
+        <translation>Gerar cortes para Shorts/Reels…</translation>
     </message>
     <message>
         <source>Close gap</source>
@@ -2408,6 +3075,120 @@ Seu Nome</translation>
     <message>
         <source>Lock</source>
         <translation>Travar</translation>
+    </message>
+</context>
+<context>
+    <name>Transcriber</name>
+    <message>
+        <source>whisper.cpp is installed, but no speech model was downloaded yet.</source>
+        <translation>O whisper.cpp está instalado, mas nenhum modelo de fala foi baixado ainda.</translation>
+    </message>
+    <message>
+        <source>faster-whisper (whisper-ctranslate2) is not installed.</source>
+        <translation>O faster-whisper (whisper-ctranslate2) não está instalado.</translation>
+    </message>
+    <message>
+        <source>No transcription engine is installed.</source>
+        <translation>Nenhum mecanismo de transcrição está instalado.</translation>
+    </message>
+    <message>
+        <source>Transcript ready</source>
+        <translation>Transcrição pronta</translation>
+    </message>
+    <message>
+        <source>Extracting the speech…</source>
+        <translation>Extraindo a fala…</translation>
+    </message>
+    <message>
+        <source>Could not read the audio</source>
+        <translation>Não foi possível ler o áudio</translation>
+    </message>
+    <message>
+        <source>ffmpeg is not installed</source>
+        <translation>O ffmpeg não está instalado</translation>
+    </message>
+    <message>
+        <source>Transcribing on this computer (%1, %2)…</source>
+        <translation>Transcrevendo neste computador (%1, %2)…</translation>
+    </message>
+    <message>
+        <source>Transcription failed</source>
+        <translation>A transcrição falhou</translation>
+    </message>
+    <message>
+        <source>Transcription failed: %1</source>
+        <translation>A transcrição falhou: %1</translation>
+    </message>
+    <message>
+        <source>No speech was found</source>
+        <translation>Nenhuma fala encontrada</translation>
+    </message>
+    <message>
+        <source>%1 could not be started</source>
+        <translation>Não foi possível iniciar %1</translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation>Cancelado</translation>
+    </message>
+</context>
+<context>
+    <name>TranscriptionStatus</name>
+    <message>
+        <source>Portuguese</source>
+        <translation>Português</translation>
+    </message>
+    <message>
+        <source>English</source>
+        <translation>Inglês</translation>
+    </message>
+    <message>
+        <source>Spanish</source>
+        <translation>Espanhol</translation>
+    </message>
+    <message>
+        <source>detected automatically</source>
+        <translation>detectado automaticamente</translation>
+    </message>
+    <message>
+        <source>Local transcription with %1</source>
+        <translation>Transcrição local com %1</translation>
+    </message>
+    <message>
+        <source>Model %1 · language: %2 · nothing leaves this computer</source>
+        <translation>Modelo %1 · idioma: %2 · nada sai deste computador</translation>
+    </message>
+    <message>
+        <source>Word timing</source>
+        <translation>Tempo por palavra</translation>
+    </message>
+    <message>
+        <source>Choose the model in Settings</source>
+        <translation>Escolher o modelo nas Configurações</translation>
+    </message>
+    <message>
+        <source>Download a speech model</source>
+        <translation>Baixe um modelo de fala</translation>
+    </message>
+    <message>
+        <source>Install a transcription engine</source>
+        <translation>Instale um mecanismo de transcrição</translation>
+    </message>
+    <message>
+        <source>whisper.cpp is installed. Download a model (base or small are good for Portuguese) in Settings › AI › Transcription and captions.</source>
+        <translation>O whisper.cpp está instalado. Baixe um modelo (base ou small vão bem em português) em Configurações › IA › Transcrição e legendas.</translation>
+    </message>
+    <message>
+        <source>Captions are made on this computer with whisper.cpp. Install it with “sudo pacman -S whisper-cpp”, then download a model in Settings › AI › Transcription and captions. faster-whisper (whisper-ctranslate2, from pipx or the AUR) also works.</source>
+        <translation>As legendas são feitas neste computador com o whisper.cpp. Instale com “sudo pacman -S whisper-cpp” e depois baixe um modelo em Configurações › IA › Transcrição e legendas. O faster-whisper (whisper-ctranslate2, pelo pipx ou AUR) também funciona.</translation>
+    </message>
+    <message>
+        <source>Check again</source>
+        <translation>Verificar de novo</translation>
+    </message>
+    <message>
+        <source>Open Settings</source>
+        <translation>Abrir Configurações</translation>
     </message>
 </context>
 </TS>

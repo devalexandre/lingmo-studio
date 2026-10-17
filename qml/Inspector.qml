@@ -78,9 +78,19 @@ Item {
             width: scroll.availableWidth
             spacing: LingmoUI.Units.smallSpacing
 
+            // ---------------- caption (word-timed)
+            CaptionInspector {
+                visible: inspector.showClipSection && inspector.hasClip && inspector.sel.kind === "caption"
+                Layout.fillWidth: true
+                Layout.leftMargin: LingmoUI.Units.smallSpacing
+                Layout.rightMargin: LingmoUI.Units.smallSpacing
+                info: visible ? inspector.sel : ({})
+                onStyleRequested: root.openCaptions("")
+            }
+
             // ---------------- clip
             LingmoUI.Card {
-                visible: inspector.showClipSection
+                visible: inspector.showClipSection && inspector.sel.kind !== "caption"
                 Layout.fillWidth: true
                 Layout.leftMargin: LingmoUI.Units.smallSpacing
                 Layout.rightMargin: LingmoUI.Units.smallSpacing

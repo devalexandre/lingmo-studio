@@ -24,5 +24,13 @@
         <file>qml/StudioPanel.qml</file>
         <file>qml/TimelinePanel.qml</file>
         <file>qml/TrackHeader.qml</file>
+        <file>qml/ShortsPage.qml</file>
+        <file>qml/CandidateCard.qml</file>
+        <file>qml/CaptionsDialog.qml</file>
+        <file>qml/CaptionStyleGallery.qml</file>
+        <file>qml/CaptionInspector.qml</file>
+        <file>qml/TranscriptionStatus.qml</file>
+        <file>data/platforms.json</file>
+        <file>data/facetrack.py</file>
     </qresource>
 </RCC>

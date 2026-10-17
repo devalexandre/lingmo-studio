@@ -29,6 +29,10 @@ that uses the shared Lingmo components (`LingmoUI.CompatibleModule`).
  │  exporter.*     presets, melt command line, GPU encoder probe    │
  │  mediaprobe.*   media info, thumbnails, audio peaks, proxies     │
  │  aitools.*      whisper, silence/scene detection, loudness, SRT  │
+ │  captions.*     word-timed captions: rules, styles, ASS/SRT/VTT  │
+ │  highlights.*   Shorts candidates, heuristic + Ollama scoring    │
+ │  platforms.*    data/platforms.json (sizes, limits, safe areas)  │
+ │  reframe.*      subject path smoothing → Position X keyframes    │
  └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -87,6 +91,38 @@ Effects (`effects.cpp`) map to MLT services: `qtblend` (transform/opacity),
 `timewarp` producer, speed ramps a `chain` with the `timeremap` link, freeze
 frames the `freeze` filter, fades `brightness` + `volume` keyframes.
 
+## Captions and Shorts
+
+A caption is a clip of kind `caption` on a subtitle track. Its words live in
+`genParams["words"]` with times in ms relative to the clip's source origin
+(`position - in`): moving the clip moves the words, trimming an edge hides
+words without losing them, and the pure operations in `timelineops.h`
+(`setCaptionText`, `splitCaption`, `mergeCaptionWithNext`, `nudgeCaptionWord`,
+`setCaptionSpeaker`, `toggleCaptionEmphasis`) keep the timing in sync. The
+track's `captionStyle` is a `Captions::Style` map (preset + overrides + the
+platform safe area + readability rules).
+
+The planner turns each visible caption track into an ASS script
+(`Captions::toAss`, times snapped to frames) written to the cache by content
+hash, and adds an `avfilter.ass` filter to the tractor. Preview and export
+therefore use the same renderer (libass); `tst_captions` renders the same
+karaoke frames through the live builder and through melt and compares them.
+The export sets the consumer frame rate explicitly: filters created while
+melt loads a project otherwise time their frames with melt's default 25 fps.
+
+`Transcriber` (app) runs ffmpeg + whisper-cli `-ojf` (or whisper-ctranslate2
+`--word_timestamps True`) in the background, with progress and cancel, and
+caches transcripts per file/model/language. `ShortsGenerator` drives "Gerar
+cortes": transcript → silences, loudness curve, scene cuts (ffmpeg) →
+candidates on sentence boundaries sized for the platforms → heuristic score →
+Ollama `/api/chat` (`think:false`, JSON schema) for the best ones → cards.
+`Editor::createShorts` makes one `Sequence` per pick (video reframed, caption
+track) laid out on the main timeline as compound clips with markers;
+`data/facetrack.py` (OpenCV) reports the face per sample and
+`Editor::applyReframe` bakes the smoothed path into keyframes.
+`Editor::exportShorts` renders each cut per platform, re-filling the frame
+from the stored subject path when the platform's aspect differs.
+
 ## Rendering path (preview)
 
 `Player` owns an `Mlt::Profile` scaled to the preview size (540p by default;
@@ -133,6 +169,17 @@ consumer reads), swaps the tractor and restarts at the same frame.
   real renders (H.264/AAC MP4 with frame count, VP9, ProRes, DNxHR, GIF, MP3,
   AV1) checked with ffprobe.
 * `tst_aitools` — SRT, transcript search, silence/scene/loudness detection.
+* `tst_captions` — whisper.cpp/faster-whisper JSON, cue building and line
+  breaks under the readability rules, ASS (karaoke timings, frame snapping,
+  every style), sidecars, caption edits, project round trip, and rendered
+  frames vs. word times in preview and export.
+* `tst_shorts` — platform presets, sentences, candidates fitted to the
+  length, heuristic scoring and selection, Ollama request/answer (a real call
+  with `STUDIO_TEST_OLLAMA_MODEL=<model>`), reframe smoothing and keyframes.
+* `tst_shortsflow` — the cuts flow through the controller (sequences,
+  captions, keyframes, batch export at 9:16 and 1:1, style previews). With
+  `STUDIO_E2E_MEDIA=<video>` and `STUDIO_TEST_HOME=<scratch home with ai.conf
+  and a model>` it runs whisper, ffmpeg, Ollama, OpenCV and melt for real.
 * `tst_editor` — the controller as QML uses it: import, undo/redo/history,
   keyframes, compound clips, save/open, autosave recovery, playback, analysis
   tools, proxies, GPU→CPU fallback, export through the render queue, templates,

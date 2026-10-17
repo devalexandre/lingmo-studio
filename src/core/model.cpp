@@ -182,7 +182,8 @@ Clip Clip::fromFullJson(const QJsonObject &o)
 bool Track::operator==(const Track &o) const
 {
     return id == o.id && kind == o.kind && name == o.name && muted == o.muted && hidden == o.hidden
-        && locked == o.locked && solo == o.solo && volumeDb == o.volumeDb && pan == o.pan && clips == o.clips;
+        && locked == o.locked && solo == o.solo && volumeDb == o.volumeDb && pan == o.pan && clips == o.clips
+        && captionStyle == o.captionStyle;
 }
 
 int Timeline::duration() const

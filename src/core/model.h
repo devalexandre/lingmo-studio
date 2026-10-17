@@ -68,7 +68,7 @@ enum class TrackKind { Video, Audio, Subtitle };
 
 struct Clip {
     QString id;
-    QString kind = QStringLiteral("media"); // media | title | color | compound
+    QString kind = QStringLiteral("media"); // media | title | color | compound | caption (see captions.h)
     QString mediaId;                        // MediaItem id (kind media) or sequence id (compound)
     QString name;
     int position = 0;   // timeline frame of the first frame
@@ -107,6 +107,7 @@ struct Track {
     double volumeDb = 0.0; // mixer fader
     double pan = 0.0;      // -1 left .. 1 right
     QList<Clip> clips;     // sorted by position
+    QVariantMap captionStyle; // subtitle tracks with caption clips: Captions::Style map (empty = Clássica)
 
     bool isVideo() const { return kind == TrackKind::Video; }
     bool isAudio() const { return kind == TrackKind::Audio; }
@@ -143,7 +144,8 @@ struct Sequence {
     QString id;
     QString name;
     Timeline timeline;
-    bool operator==(const Sequence &o) const { return id == o.id && name == o.name && timeline == o.timeline; }
+    QVariantMap info; // generated cuts: {"platforms", "title", "score", "reason", "mediaId", "startMs", "endMs"}
+    bool operator==(const Sequence &o) const { return id == o.id && name == o.name && timeline == o.timeline && info == o.info; }
 };
 
 struct MediaItem {

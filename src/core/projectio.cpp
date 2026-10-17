@@ -39,11 +39,14 @@ QJsonObject timelineToJson(const Timeline &tl)
         QJsonArray clips;
         for (const Clip &c : t.clips)
             clips.append(c.toFullJson());
-        tracks.append(QJsonObject{{QStringLiteral("id"), t.id}, {QStringLiteral("kind"), kindName(t.kind)},
-                                  {QStringLiteral("name"), t.name}, {QStringLiteral("muted"), t.muted},
-                                  {QStringLiteral("hidden"), t.hidden}, {QStringLiteral("locked"), t.locked},
-                                  {QStringLiteral("solo"), t.solo}, {QStringLiteral("volume"), t.volumeDb},
-                                  {QStringLiteral("pan"), t.pan}, {QStringLiteral("clips"), clips}});
+        QJsonObject to{{QStringLiteral("id"), t.id}, {QStringLiteral("kind"), kindName(t.kind)},
+                       {QStringLiteral("name"), t.name}, {QStringLiteral("muted"), t.muted},
+                       {QStringLiteral("hidden"), t.hidden}, {QStringLiteral("locked"), t.locked},
+                       {QStringLiteral("solo"), t.solo}, {QStringLiteral("volume"), t.volumeDb},
+                       {QStringLiteral("pan"), t.pan}, {QStringLiteral("clips"), clips}};
+        if (!t.captionStyle.isEmpty())
+            to.insert(QStringLiteral("captionStyle"), QJsonObject::fromVariantMap(t.captionStyle));
+        tracks.append(to);
     }
     QJsonArray markers;
     for (const Marker &m : tl.markers)
@@ -77,6 +80,7 @@ Timeline timelineFromJson(const QJsonObject &o)
         t.solo = to.value(QStringLiteral("solo")).toBool();
         t.volumeDb = to.value(QStringLiteral("volume")).toDouble();
         t.pan = to.value(QStringLiteral("pan")).toDouble();
+        t.captionStyle = to.value(QStringLiteral("captionStyle")).toObject().toVariantMap();
         for (const QJsonValue &cv : to.value(QStringLiteral("clips")).toArray())
             t.clips.append(Clip::fromFullJson(cv.toObject()));
         tl.tracks.append(t);
@@ -98,7 +102,12 @@ QByteArray toXml(const ProjectData &data, const QString &title, bool useProxies)
         bin.append(m.toJson());
     QJsonArray seqs;
     for (const Sequence &s : data.doc.sequences)
-        seqs.append(QJsonObject{{QStringLiteral("id"), s.id}, {QStringLiteral("name"), s.name}, {QStringLiteral("timeline"), timelineToJson(s.timeline)}});
+    {
+        QJsonObject so{{QStringLiteral("id"), s.id}, {QStringLiteral("name"), s.name}, {QStringLiteral("timeline"), timelineToJson(s.timeline)}};
+        if (!s.info.isEmpty())
+            so.insert(QStringLiteral("info"), QJsonObject::fromVariantMap(s.info));
+        seqs.append(so);
+    }
     const Props root = {{QStringLiteral("studio:version"), QStringLiteral("1")},
                         {QStringLiteral("studio:samplerate"), QString::number(data.settings.sampleRate)},
                         {QStringLiteral("studio:bin"), QString::fromUtf8(QJsonDocument(bin).toJson(QJsonDocument::Compact))},
@@ -324,7 +333,8 @@ bool loadXml(const QByteArray &xml, ProjectData *data, QString *error)
     for (const QJsonValue &v : QJsonDocument::fromJson(tractor.get("studio:sequences")).array()) {
         const QJsonObject o = v.toObject();
         data->doc.sequences.append({o.value(QStringLiteral("id")).toString(), o.value(QStringLiteral("name")).toString(),
-                                    timelineFromJson(o.value(QStringLiteral("timeline")).toObject())});
+                                    timelineFromJson(o.value(QStringLiteral("timeline")).toObject()),
+                                    o.value(QStringLiteral("info")).toObject().toVariantMap()});
     }
     data->doc.timeline.markers = markersFromJson(QJsonDocument::fromJson(tractor.get("studio:markers")).array());
 
@@ -354,6 +364,8 @@ bool loadXml(const QByteArray &xml, ProjectData *data, QString *error)
         t.solo = tp->get_int("studio:solo");
         t.volumeDb = tp->get_double("studio:volume");
         t.pan = tp->get_double("studio:pan");
+        if (const char *style = tp->get("studio:captionstyle"))
+            t.captionStyle = QJsonDocument::fromJson(QByteArray(style)).object().toVariantMap();
         mltTracks.append(t);
         loader.readPlaylist(pl, mltTracks.size() - 1, parts);
     }

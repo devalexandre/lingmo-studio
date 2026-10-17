@@ -9,6 +9,7 @@
 
 #include "editor.h"
 #include "aitools.h"
+#include "captions.h"
 #include "effects.h"
 #include "imageproviders.h"
 #include "mediabin.h"
@@ -18,9 +19,13 @@
 #include "projectio.h"
 #include "recorder.h"
 #include "renderqueue.h"
+#include "platforms.h"
+#include "reframe.h"
 #include "scopes.h"
+#include "shorts.h"
 #include "timelineops.h"
 #include "timelinemodel.h"
+#include "transcriber.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -31,6 +36,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -113,6 +119,20 @@ Editor::Editor(QObject *parent)
     m_renderQueue = new RenderQueue(this);
     m_scopes = new Scopes(m_player, this);
     m_recorder = new Recorder(this);
+    m_transcriber = new Transcriber(this);
+    m_shorts = new ShortsGenerator(this);
+    connect(m_transcriber, &Transcriber::engineChanged, this, &Editor::whisperChanged);
+    connect(m_transcriber, &Transcriber::finished, this, [this](const QString &task) {
+        if (task == QLatin1String("captions"))
+            captionsTranscribed();
+    });
+    connect(m_transcriber, &Transcriber::failed, this, [this](const QString &task, const QString &message) {
+        if (task != QLatin1String("captions"))
+            return;
+        m_captionClip.clear();
+        Q_EMIT captionsBusyChanged();
+        setStatus(message);
+    });
 
     QSettings s;
     m_recent = s.value(QStringLiteral("recentProjects")).toStringList();
@@ -167,6 +187,8 @@ QObject *Editor::playerObject() const { return m_player; }
 QObject *Editor::renderQueueObject() const { return m_renderQueue; }
 QObject *Editor::scopesObject() const { return m_scopes; }
 QObject *Editor::recorderObject() const { return m_recorder; }
+QObject *Editor::transcriberObject() const { return m_transcriber; }
+QObject *Editor::shortsObject() const { return m_shorts; }
 
 void Editor::setStatus(const QString &s)
 {
@@ -401,12 +423,12 @@ QStringList Editor::projectPresets() const
 
 bool Editor::whisperAvailable() const
 {
-    return AiTools::findWhisper().available();
+    return m_transcriber->available();
 }
 
 QString Editor::whisperEngine() const
 {
-    return AiTools::findWhisper().kind;
+    return m_transcriber->engine();
 }
 
 bool Editor::ollamaAvailable() const
@@ -695,9 +717,12 @@ void Editor::setProjectSettings(int width, int height, int fpsNum, int fpsDen)
     // Keep timing in seconds: frame positions scale with the rate
     const double ratio = s.fps() / m_settings.fps();
     if (std::abs(ratio - 1.0) > 1e-6) {
-        auto scale = [ratio](Timeline &tl) {
+        const double newFps = s.fps();
+        auto scale = [ratio, newFps](Timeline &tl) {
             for (Track &t : tl.tracks) {
                 for (Clip &c : t.clips) {
+                    if (Captions::isCaption(c))
+                        c.genParams[QStringLiteral("fps")] = newFps; // words are in ms: only the frame grid changes
                     const int dur = std::max(1, int(std::lround(c.duration() * ratio)));
                     c.position = int(std::lround(c.position * ratio));
                     c.in = int(std::lround(c.in * ratio));
@@ -861,6 +886,20 @@ QVariantMap Editor::clipToMap(const Clip &c, int track) const
             m.insert(QStringLiteral("name"), mi->name);
         hasAudio = mi->hasAudio && !c.audioMuted;
         hasVideo = mi->hasVideo;
+    }
+    if (Captions::isCaption(c)) {
+        // words in timeline frames/ms for the caption inspector
+        const double origin = Captions::originMs(c, fps());
+        QVariantList words;
+        for (const Captions::Word &w : Captions::clipWords(c))
+            words.append(QVariantMap{{QStringLiteral("text"), w.text},
+                                     {QStringLiteral("startMs"), qint64(std::llround(origin + w.startMs))},
+                                     {QStringLiteral("endMs"), qint64(std::llround(origin + w.endMs))},
+                                     {QStringLiteral("emphasis"), w.emphasis},
+                                     {QStringLiteral("visible"), origin + w.endMs > c.position * 1000.0 / fps() && origin + w.startMs < c.end() * 1000.0 / fps()}});
+        m.insert(QStringLiteral("words"), words);
+        m.insert(QStringLiteral("speaker"), Captions::clipSpeaker(c));
+        m.insert(QStringLiteral("text"), Captions::joinWords(Captions::clipWords(c)));
     }
     m.insert(QStringLiteral("hasAudio"), hasAudio && !t.isAudio() ? true : (hasAudio || t.isAudio()));
     m.insert(QStringLiteral("hasVideo"), hasVideo && !t.isAudio());
@@ -2018,85 +2057,302 @@ void Editor::placeRecording(const QString &path)
 
 // ------------------------------------------------------------------ AI / analysis
 
-static int subtitleTrack(Timeline &tl)
+void Editor::autoSubtitles(const QString &clipId, const QString &language)
+{
+    Q_UNUSED(language) // Settings › AI › Transcrição e legendas decides
+    generateCaptions(clipId, m_captionStyleId.isEmpty() ? QStringLiteral("classic") : m_captionStyleId);
+}
+
+// ------------------------------------------------------------------ captions
+
+// The caption track of a timeline: the first subtitle track with captions,
+// else the first one without legacy title subtitles, else a new one on top.
+static int captionTrack(Timeline &tl, const QVariantMap &style)
 {
     for (int i = 0; i < tl.tracks.size(); ++i)
-        if (tl.tracks.at(i).kind == TrackKind::Subtitle)
+        if (Captions::trackHasCaptions(tl.tracks.at(i)))
             return i;
+    for (int i = 0; i < tl.tracks.size(); ++i)
+        if (tl.tracks.at(i).kind == TrackKind::Subtitle && tl.tracks.at(i).clips.isEmpty()) {
+            if (tl.tracks.at(i).captionStyle.isEmpty())
+                tl.tracks[i].captionStyle = style;
+            return i;
+        }
     Track s;
     s.id = newId(QStringLiteral("t"));
     s.kind = TrackKind::Subtitle;
-    s.name = QStringLiteral("S1");
+    int n = 0;
+    for (const Track &t : tl.tracks)
+        n += t.kind == TrackKind::Subtitle;
+    s.name = QStringLiteral("S%1").arg(n + 1);
+    s.captionStyle = style;
     tl.tracks.prepend(s);
     return 0;
 }
 
-void Editor::autoSubtitles(const QString &clipId, const QString &language)
+QVariantList Editor::captionStyles() const
 {
-    const AiTools::WhisperEngine engine = AiTools::findWhisper();
-    if (!engine.available()) {
-        setStatus(tr("Install whisper.cpp (whisper-cli and a model) or faster-whisper for automatic subtitles"));
+    QVariantList list;
+    for (const Captions::Style &s : Captions::Style::presets()) {
+        QVariantMap m = s.toMap();
+        m.insert(QStringLiteral("name"), Captions::Style::presetName(s.id));
+        list.append(m);
+    }
+    return list;
+}
+
+QVariantMap Editor::captionStylePreset(const QString &id) const
+{
+    QVariantMap m = Captions::Style::preset(id).toMap();
+    m.insert(QStringLiteral("name"), Captions::Style::presetName(id));
+    return m;
+}
+
+QVariantMap Editor::captionTrackStyle() const
+{
+    for (const Track &t : currentTimeline().tracks)
+        if (Captions::trackHasCaptions(t)) {
+            QVariantMap m = Captions::Style::fromMap(t.captionStyle).toMap();
+            m.insert(QStringLiteral("name"), Captions::Style::presetName(m.value(QStringLiteral("id")).toString()));
+            return m;
+        }
+    return captionStylePreset(m_captionStyleId.isEmpty() ? QStringLiteral("classic") : m_captionStyleId);
+}
+
+bool Editor::hasCaptions() const
+{
+    for (const Track &t : currentTimeline().tracks)
+        if (Captions::trackHasCaptions(t))
+            return true;
+    return false;
+}
+
+// A style for this project: vertical projects keep captions out of the
+// platform interface (TikTok's layout covers the most common case)
+static Captions::Style styleForProject(const QString &id, const ProjectSettings &settings)
+{
+    Captions::Style st = Captions::Style::preset(id);
+    if (settings.height > settings.width) {
+        const Platform p = Platforms::find(QStringLiteral("tiktok"));
+        if (p.valid())
+            st.safeArea = p.safeArea;
+    }
+    return st;
+}
+
+void Editor::generateCaptions(const QString &clipId, const QString &styleId)
+{
+    if (!m_captionClip.isEmpty())
+        return;
+    m_transcriber->refresh();
+    if (!m_transcriber->available()) {
+        setStatus(m_transcriber->problem());
         return;
     }
-    const Clip *c = currentTimeline().clip(clipId);
-    const MediaItem *m = c ? mediaItem(c->mediaId) : nullptr;
-    if (!m || !m->hasAudio) {
+    // the clip asked for, else the selection, else the first clip with sound
+    QString id = clipId;
+    if (id.isEmpty() && !m_selection.isEmpty())
+        id = m_selection.first();
+    auto speechClip = [this](const QString &cid) {
+        const Clip *c = currentTimeline().clip(cid);
+        const MediaItem *m = c ? mediaItem(c->mediaId) : nullptr;
+        return c && m && m->hasAudio && c->kind == QLatin1String("media");
+    };
+    if (!speechClip(id)) {
+        id.clear();
+        for (const Track &t : currentTimeline().tracks)
+            for (const Clip &c : t.clips)
+                if (id.isEmpty() && speechClip(c.id))
+                    id = c.id;
+    }
+    if (id.isEmpty()) {
         setStatus(tr("Select a clip with speech"));
         return;
     }
-    auto dir = std::make_shared<QTemporaryDir>();
-    const QString wav = dir->filePath(QStringLiteral("speech.wav"));
-    const QString base = dir->filePath(QStringLiteral("speech"));
-    const QString mediaId = m->id;
-    const QString id = clipId;
-    runTool(tr("Extracting speech…"), QStringLiteral("ffmpeg"), AiTools::extractSpeechAudioArguments(m->path, wav),
-            [this, dir, wav, base, engine, language, mediaId, id](int code, const QString &) {
-                if (code != 0) {
-                    setStatus(tr("Could not read the audio"));
-                    return;
-                }
-                runTool(tr("Transcribing (local)…"), engine.program, AiTools::whisperArguments(engine, wav, base, language),
-                        [this, dir, base, mediaId, id](int, const QString &) {
-                            QFile f(base + QStringLiteral(".srt"));
-                            if (!f.open(QIODevice::ReadOnly)) {
-                                setStatus(tr("Transcription failed"));
-                                return;
-                            }
-                            const QString srt = QString::fromUtf8(f.readAll());
-                            if (const MediaItem *mi = mediaItem(mediaId)) {
-                                MediaItem copy = *mi;
-                                copy.transcript = srt;
-                                updateMedia(copy);
-                            }
-                            const QList<AiTools::SubtitleCue> cues = AiTools::parseSrt(srt);
-                            modify(tr("Automatic subtitles"), [&](Timeline &tl, Document &, QString *) {
-                                const Clip *cl = tl.clip(id);
-                                if (!cl)
-                                    return false;
-                                const Clip clip = *cl;
-                                const int st = subtitleTrack(tl);
-                                const double f = fps();
-                                int added = 0;
-                                for (const AiTools::SubtitleCue &cue : cues) {
-                                    const int srcStart = int(std::lround(cue.startMs / 1000.0 * f));
-                                    const int srcEnd = int(std::lround(cue.endMs / 1000.0 * f));
-                                    if (srcEnd <= clip.in || srcStart > clip.out)
-                                        continue;
-                                    Clip s;
-                                    s.id = newId(QStringLiteral("c"));
-                                    s.kind = QStringLiteral("title");
-                                    s.position = clip.position + std::max(0, srcStart - clip.in);
-                                    s.in = 0;
-                                    s.out = std::max(1, std::min(srcEnd, clip.out + 1) - std::max(srcStart, clip.in)) - 1;
-                                    s.effects << titleEffect(cue.text, QStringLiteral("subtitle"), m_settings.height / 1080.0);
-                                    Ops::insertClip(tl, st, s, false);
-                                    ++added;
-                                }
-                                return added > 0;
-                            });
-                            setStatus(tr("%n subtitle(s) added", nullptr, int(cues.size())));
-                        });
-            });
+    const Clip *c = currentTimeline().clip(id);
+    if (std::abs(c->speed - 1.0) > 1e-6 || !c->speedRamp.isEmpty()) {
+        setStatus(tr("Captions need the clip at normal speed"));
+        return;
+    }
+    const MediaItem *m = mediaItem(c->mediaId);
+    m_captionClip = id;
+    m_captionStyleId = Captions::Style::presetIds().contains(styleId) ? styleId : QStringLiteral("classic");
+    Q_EMIT captionsBusyChanged();
+    // only what the clip plays (with a little margin for words cut at the edges)
+    const qint64 start = std::max<qint64>(0, qint64(c->in * 1000.0 / fps()) - 500);
+    const qint64 length = qint64(c->duration() * 1000.0 / fps()) + 1000;
+    m_transcriber->transcribe(m->path, start, length, QStringLiteral("captions"));
+}
+
+void Editor::cancelCaptions()
+{
+    if (m_captionClip.isEmpty())
+        return;
+    m_transcriber->cancel();
+}
+
+void Editor::captionsTranscribed()
+{
+    const QString id = m_captionClip;
+    m_captionClip.clear();
+    Q_EMIT captionsBusyChanged();
+    const Captions::Transcript t = m_transcriber->result();
+    const Clip *c0 = currentTimeline().clip(id);
+    if (!c0) {
+        setStatus(tr("The clip was removed"));
+        return;
+    }
+    if (const MediaItem *mi = mediaItem(c0->mediaId)) {
+        // spoken-word search uses the transcript
+        QList<AiTools::SubtitleCue> cues;
+        for (const Captions::Cue &cue : Captions::buildCues(t.words, Captions::Rules()))
+            cues.append({cue.startMs, cue.endMs, cue.lines.join(QLatin1Char(' '))});
+        MediaItem copy = *mi;
+        copy.transcript = AiTools::writeSrt(cues);
+        updateMedia(copy);
+    }
+    const Captions::Style style = styleForProject(m_captionStyleId, m_settings);
+    int added = 0;
+    modify(tr("Automatic captions"), [&](Timeline &tl, Document &, QString *) {
+        const Clip *cl = tl.clip(id);
+        if (!cl)
+            return false;
+        const Clip clip = *cl;
+        const double f = fps();
+        // file time → timeline time
+        const double offset = (clip.position - clip.in) * 1000.0 / f;
+        const qint64 from = qint64(clip.position * 1000.0 / f), to = qint64(clip.end() * 1000.0 / f);
+        QList<Captions::Word> words;
+        for (Captions::Word w : t.words) {
+            w.startMs = qint64(std::llround(w.startMs + offset));
+            w.endMs = qint64(std::llround(w.endMs + offset));
+            const qint64 mid = (w.startMs + w.endMs) / 2;
+            if (mid < from || mid >= to)
+                continue;
+            w.startMs = std::max(w.startMs, from);
+            w.endMs = std::min(w.endMs, to);
+            words.append(w);
+        }
+        if (words.isEmpty())
+            return false;
+        const int st = captionTrack(tl, style.toMap());
+        Track &track = tl.tracks[st];
+        // replace earlier captions of this stretch
+        Ops::clearRange(track, clip.position, clip.end());
+        QList<Captions::Cue> cues = Captions::buildCues(words, Captions::Style::fromMap(track.captionStyle).effectiveRules(m_settings.width, m_settings.height));
+        for (Captions::Cue &cue : cues)
+            cue.endMs = std::min(cue.endMs, to);
+        for (const Captions::Cue &cue : std::as_const(cues)) {
+            Clip cc = Captions::makeClip(cue, f);
+            if (cc.position >= clip.end())
+                continue;
+            cc.out = std::min(cc.out, cc.in + (clip.end() - cc.position) - 1);
+            track.clips.append(cc);
+            ++added;
+        }
+        Ops::sortTrack(track);
+        Ops::normalizeTrack(track);
+        return added > 0;
+    });
+    setStatus(added ? tr("%n caption(s) added", nullptr, added) : tr("No speech was found in this clip"));
+}
+
+void Editor::setCaptionStyle(const QVariantMap &styleMap)
+{
+    const QVariantMap style = Captions::Style::fromMap(styleMap).toMap();
+    m_captionStyleId = style.value(QStringLiteral("id")).toString();
+    modify(tr("Caption style"), [&](Timeline &tl, Document &, QString *) {
+        bool any = false;
+        for (Track &t : tl.tracks)
+            if (Captions::trackHasCaptions(t) && t.captionStyle != style) {
+                t.captionStyle = style;
+                any = true;
+            }
+        return any;
+    }, MergeTrack, QStringLiteral("captionstyle"));
+}
+
+bool Editor::setCaptionText(const QString &clipId, const QString &text)
+{
+    return modify(tr("Edit caption"), [&](Timeline &tl, Document &, QString *err) { return Ops::setCaptionText(tl, clipId, text, fps(), err); },
+                  MergeClip, QStringLiteral("captiontext:") + clipId);
+}
+
+bool Editor::setCaptionWord(const QString &clipId, int index, const QString &text)
+{
+    return modify(tr("Edit caption"), [&](Timeline &tl, Document &, QString *err) { return Ops::setCaptionWord(tl, clipId, index, text, err); });
+}
+
+QString Editor::splitCaption(const QString &clipId, int wordIndex)
+{
+    QString right;
+    modify(tr("Split caption"), [&](Timeline &tl, Document &, QString *err) {
+        right = Ops::splitCaption(tl, clipId, wordIndex, fps(), err);
+        return !right.isEmpty();
+    });
+    return right;
+}
+
+bool Editor::mergeCaption(const QString &clipId)
+{
+    return modify(tr("Merge captions"), [&](Timeline &tl, Document &, QString *err) { return Ops::mergeCaptionWithNext(tl, clipId, fps(), err); });
+}
+
+bool Editor::nudgeCaptionWord(const QString &clipId, int index, int deltaMs)
+{
+    return modify(tr("Move word"), [&](Timeline &tl, Document &, QString *err) { return Ops::nudgeCaptionWord(tl, clipId, index, deltaMs, err); },
+                  MergeClip, QStringLiteral("nudge:%1:%2").arg(clipId).arg(index));
+}
+
+bool Editor::setCaptionSpeaker(const QString &clipId, int speaker)
+{
+    return modify(tr("Caption speaker"), [&](Timeline &tl, Document &, QString *err) { return Ops::setCaptionSpeaker(tl, clipId, speaker, err); });
+}
+
+bool Editor::toggleCaptionEmphasis(const QString &clipId, int index)
+{
+    return modify(tr("Caption keyword"), [&](Timeline &tl, Document &, QString *err) { return Ops::toggleCaptionEmphasis(tl, clipId, index, err); });
+}
+
+static QList<Captions::Cue> timelineCues(const Timeline &tl, const ProjectSettings &s, Captions::Style *styleOut = nullptr)
+{
+    for (const Track &t : tl.tracks) {
+        if (!Captions::trackHasCaptions(t))
+            continue;
+        const Captions::Style style = Captions::Style::fromMap(t.captionStyle);
+        if (styleOut)
+            *styleOut = style;
+        return Captions::trackCues(t, s.fps(), style, s.width, s.height);
+    }
+    return {};
+}
+
+bool Editor::exportCaptions(const QUrl &file, const QString &format)
+{
+    Captions::Style style;
+    const QList<Captions::Cue> cues = timelineCues(currentTimeline(), m_settings, &style);
+    if (cues.isEmpty())
+        return exportSubtitles(file); // legacy title subtitles
+    QString path = file.isLocalFile() ? file.toLocalFile() : file.toString();
+    const QString fmt = format.toLower();
+    if (QFileInfo(path).suffix().isEmpty())
+        path += QLatin1Char('.') + fmt;
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly)) {
+        setStatus(tr("Could not write %1").arg(QFileInfo(path).fileName()));
+        return false;
+    }
+    const QString text = fmt == QLatin1String("vtt") ? Captions::toVtt(cues)
+        : fmt == QLatin1String("ass")                ? Captions::toAss(cues, style, m_settings.width, m_settings.height, fps())
+                                                     : Captions::toSrt(cues);
+    f.write(text.toUtf8());
+    setStatus(tr("Captions saved"));
+    return true;
+}
+
+void Editor::openTranscriptionSettings()
+{
+    m_transcriber->openSettings();
 }
 
 void Editor::importSubtitles(const QUrl &srt)
@@ -2107,18 +2363,23 @@ void Editor::importSubtitles(const QUrl &srt)
         return;
     }
     const QList<AiTools::SubtitleCue> cues = AiTools::parseSrt(QString::fromUtf8(f.readAll()));
+    const Captions::Style style = styleForProject(m_captionStyleId.isEmpty() ? QStringLiteral("classic") : m_captionStyleId, m_settings);
     modify(tr("Import subtitles"), [&](Timeline &tl, Document &, QString *) {
-        const int st = subtitleTrack(tl);
+        const int st = captionTrack(tl, style.toMap());
         for (const AiTools::SubtitleCue &cue : cues) {
-            Clip s;
-            s.id = newId(QStringLiteral("c"));
-            s.kind = QStringLiteral("title");
-            s.position = int(std::lround(cue.startMs / 1000.0 * fps()));
-            s.in = 0;
-            s.out = std::max(1, int(std::lround((cue.endMs - cue.startMs) / 1000.0 * fps()))) - 1;
-            s.effects << titleEffect(cue.text, QStringLiteral("subtitle"), m_settings.height / 1080.0);
-            Ops::insertClip(tl, st, s, false);
+            // no word times in SRT: words are spread over the cue, the cue keeps its exact times
+            Captions::Cue c;
+            c.startMs = cue.startMs;
+            c.endMs = cue.endMs;
+            c.words = Captions::spreadWords(cue.text, cue.startMs, cue.endMs);
+            if (c.words.isEmpty())
+                continue;
+            Clip cc = Captions::makeClip(c, fps());
+            Ops::clearRange(tl.tracks[st], cc.position, cc.end());
+            tl.tracks[st].clips.append(cc);
+            Ops::sortTrack(tl.tracks[st]);
         }
+        Ops::normalizeTrack(tl.tracks[st]);
         return !cues.isEmpty();
     });
 }
@@ -2126,8 +2387,10 @@ void Editor::importSubtitles(const QUrl &srt)
 bool Editor::exportSubtitles(const QUrl &srt)
 {
     QList<AiTools::SubtitleCue> cues;
+    for (const Captions::Cue &c : timelineCues(currentTimeline(), m_settings))
+        cues.append({c.startMs, c.endMs, c.text()});
     for (const Track &t : currentTimeline().tracks) {
-        if (t.kind != TrackKind::Subtitle)
+        if (t.kind != TrackKind::Subtitle || !cues.isEmpty())
             continue;
         for (const Clip &c : t.clips)
             for (const Effect &e : c.effects)
@@ -2145,6 +2408,266 @@ bool Editor::exportSubtitles(const QUrl &srt)
     f.write(AiTools::writeSrt(cues).toUtf8());
     setStatus(tr("Subtitles saved"));
     return true;
+}
+
+// ------------------------------------------------------------------ shorts
+
+QVariantList Editor::shortSequences() const
+{
+    QVariantList list;
+    for (const Sequence &s : m_doc.sequences) {
+        if (s.info.isEmpty())
+            continue;
+        QVariantMap m = s.info;
+        m.insert(QStringLiteral("id"), s.id);
+        m.insert(QStringLiteral("name"), s.name);
+        m.insert(QStringLiteral("duration"), s.timeline.duration());
+        list.append(m);
+    }
+    return list;
+}
+
+QList<QPair<QString, QString>> Editor::createShorts(const MediaItem &media, const QList<ShortCut> &cuts, const QStringList &platforms,
+                                                    const QString &styleId, const QList<Captions::Word> &words)
+{
+    QList<QPair<QString, QString>> made;
+    const Platform platform = Platforms::primary(platforms);
+    if (!platform.valid() || cuts.isEmpty())
+        return made;
+    leaveCompound(0);
+    // A project in the platform's size: a new one when this one already has other work
+    const bool sizeDiffers = m_settings.width != platform.width || m_settings.height != platform.height;
+    if (sizeDiffers && currentTimeline().duration() > 1) {
+        const QList<MediaItem> keep = m_media;
+        newProject(QStringLiteral("vertical1080"));
+        for (const MediaItem &m : keep)
+            addMedia(m);
+    }
+    if (sizeDiffers || std::abs(fps() - platform.fps) > 1e-6)
+        setProjectSettings(platform.width, platform.height, platform.fps, 1);
+    if (!mediaItem(media.id))
+        addMedia(media);
+    const MediaItem *m = mediaItem(media.id);
+    const double f = fps();
+    const int W = m_settings.width, H = m_settings.height;
+    const double scale = m->hasVideo ? Reframe::fillScale(m->width, m->height, W, H) : 100.0;
+
+    modify(tr("Generate cuts"), [&](Timeline &tl, Document &doc, QString *) {
+        int v1 = -1, cursor = tl.duration();
+        for (int i = tl.tracks.size() - 1; i >= 0; --i)
+            if (tl.tracks.at(i).isVideo()) {
+                v1 = i; // the bottom video track
+                break;
+            }
+        if (v1 < 0)
+            return false;
+        int n = 0;
+        for (const Sequence &s : doc.sequences)
+            n += !s.info.isEmpty();
+        for (const ShortCut &cut : cuts) {
+            ++n;
+            Sequence seq;
+            seq.id = newId(QStringLiteral("seq"));
+            seq.name = QStringLiteral("%1. %2").arg(n).arg(cut.title.isEmpty() ? tr("Cut") : cut.title);
+            seq.timeline = Timeline::defaultTimeline();
+            int sv1 = -1;
+            for (int i = seq.timeline.tracks.size() - 1; i >= 0; --i)
+                if (seq.timeline.tracks.at(i).isVideo()) {
+                    sv1 = i;
+                    break;
+                }
+            Clip c;
+            c.id = newId(QStringLiteral("c"));
+            c.mediaId = m->id;
+            c.in = std::max(0, int(std::lround(cut.startMs * f / 1000.0)));
+            c.out = std::min(m->length - 1, int(std::lround(cut.endMs * f / 1000.0)) - 1);
+            if (c.out <= c.in)
+                continue;
+            c.position = 0;
+            if (m->hasVideo && scale > 101) {
+                Effect tf = EffectRegistry::create(QStringLiteral("transform"));
+                tf.params[QStringLiteral("scale")] = std::round(scale * 10) / 10;
+                tf.params[QStringLiteral("x")] = 0.0; // centred until the subject tracker answers
+                c.effects << tf;
+            }
+            if (!Ops::insertClip(seq.timeline, sv1, c, false))
+                continue;
+            if (!styleId.isEmpty()) {
+                Captions::Style style = Captions::Style::preset(styleId);
+                style.safeArea = platform.safeArea;
+                QList<Captions::Word> local;
+                for (Captions::Word w : words) {
+                    const qint64 mid = (w.startMs + w.endMs) / 2; // words cut by an edge belong to the side with most of them
+                    if (mid < cut.startMs || mid >= cut.endMs)
+                        continue;
+                    w.startMs = std::max<qint64>(0, w.startMs - cut.startMs);
+                    w.endMs = std::min<qint64>(cut.endMs - cut.startMs, w.endMs - cut.startMs);
+                    local.append(w);
+                }
+                Track sub;
+                sub.id = newId(QStringLiteral("t"));
+                sub.kind = TrackKind::Subtitle;
+                sub.name = QStringLiteral("S1");
+                sub.captionStyle = style.toMap();
+                const int len = c.duration();
+                for (const Captions::Cue &cue : Captions::buildCues(local, style.effectiveRules(W, H))) {
+                    Clip cc = Captions::makeClip(cue, f);
+                    if (cc.position >= len)
+                        continue;
+                    cc.out = std::min(cc.out, cc.in + (len - cc.position) - 1);
+                    sub.clips << cc;
+                }
+                Ops::normalizeTrack(sub);
+                seq.timeline.tracks.prepend(sub);
+            }
+            seq.info = {{QStringLiteral("platforms"), platforms},
+                        {QStringLiteral("title"), cut.title},
+                        {QStringLiteral("reason"), cut.reason},
+                        {QStringLiteral("score"), std::round(cut.score)},
+                        {QStringLiteral("mediaId"), m->id},
+                        {QStringLiteral("startMs"), cut.startMs},
+                        {QStringLiteral("endMs"), cut.endMs},
+                        {QStringLiteral("index"), n}};
+            doc.sequences.append(seq);
+            // the cuts one after another on the main timeline, with a marker each
+            Clip compound;
+            compound.id = newId(QStringLiteral("c"));
+            compound.kind = QStringLiteral("compound");
+            compound.mediaId = seq.id;
+            compound.name = seq.name;
+            compound.position = cursor;
+            compound.in = 0;
+            compound.out = seq.timeline.duration() - 1;
+            if (!Ops::insertClip(tl, v1, compound, false)) {
+                doc.sequences.removeLast();
+                continue;
+            }
+            tl.markers.append({cursor, cut.title, QStringLiteral("orange")});
+            cursor += compound.duration();
+            made.append({seq.id, c.id});
+        }
+        return !made.isEmpty();
+    });
+    setStatus(tr("%n cut(s) created: double-click one on the timeline to edit it", nullptr, int(made.size())));
+    return made;
+}
+
+void Editor::applyReframe(const QString &sequenceId, const QString &clipId, const QList<Reframe::Sample> &samples)
+{
+    if (samples.isEmpty())
+        return;
+    const QList<Reframe::Sample> path = Reframe::smooth(samples);
+    modify(tr("Follow the subject"), [&](Timeline &, Document &doc, QString *) {
+        for (Sequence &s : doc.sequences) {
+            if (s.id != sequenceId)
+                continue;
+            Clip *c = s.timeline.clip(clipId);
+            const MediaItem *m = c ? mediaItem(c->mediaId) : nullptr;
+            if (!c || !m || m->width <= 0)
+                return false;
+            Effect *tf = nullptr;
+            for (Effect &e : c->effects)
+                if (e.type == QLatin1String("transform"))
+                    tf = &e;
+            if (!tf)
+                return false;
+            QVariantList stored;
+            for (const Reframe::Sample &p : path)
+                stored.append(QVariantList{std::round(p.t * 1000) / 1000, std::round(p.x * 10000) / 10000});
+            c->genParams[QStringLiteral("reframePath")] = stored; // re-used for other aspect ratios at export
+            tf->keyframes = Reframe::keyframes(path, 0, c->duration(), fps(), m->width, m->height, m_settings.width, m_settings.height, tf->params);
+            if (tf->keyframes.size() == 1) { // a still subject: no animation
+                tf->params = tf->keyframes.first().values;
+                tf->keyframes.clear();
+            }
+            return true;
+        }
+        return false;
+    });
+}
+
+static QString slug(const QString &s)
+{
+    QString d = s.normalized(QString::NormalizationForm_D);
+    d.remove(QRegularExpression(QStringLiteral("\\p{Mn}")));
+    d = d.toLower();
+    d.replace(QRegularExpression(QStringLiteral("[^a-z0-9]+")), QStringLiteral("-"));
+    d = d.left(40);
+    while (d.endsWith(QLatin1Char('-')))
+        d.chop(1);
+    while (d.startsWith(QLatin1Char('-')))
+        d.remove(0, 1);
+    return d.isEmpty() ? QStringLiteral("corte") : d;
+}
+
+void Editor::exportShorts(const QUrl &folder)
+{
+    QString dir = folder.isLocalFile() ? folder.toLocalFile() : folder.toString();
+    if (dir.isEmpty())
+        dir = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation) + QStringLiteral("/") + tr("Cuts");
+    QDir().mkpath(dir);
+    int queued = 0;
+    for (const Sequence &seq : std::as_const(m_doc.sequences)) {
+        if (seq.info.isEmpty())
+            continue;
+        const QStringList platforms = seq.info.value(QStringLiteral("platforms")).toStringList();
+        const int index = seq.info.value(QStringLiteral("index")).toInt();
+        for (const QString &pid : platforms) {
+            const Platform p = Platforms::find(pid);
+            if (!p.valid())
+                continue;
+            ProjectData d;
+            d.settings = m_settings;
+            d.media = m_media;
+            d.doc.sequences = m_doc.sequences;
+            d.doc.timeline = seq.timeline;
+            const bool sameSize = p.width == m_settings.width && p.height == m_settings.height;
+            d.settings.width = p.width;
+            d.settings.height = p.height;
+            for (Track &t : d.doc.timeline.tracks) {
+                if (Captions::trackHasCaptions(t)) {
+                    Captions::Style st = Captions::Style::fromMap(t.captionStyle);
+                    st.safeArea = p.safeArea; // each platform's interface
+                    t.captionStyle = st.toMap();
+                }
+                if (sameSize || !t.isVideo())
+                    continue;
+                // another aspect ratio: fill it again, following the stored subject path
+                for (Clip &c : t.clips) {
+                    const MediaItem *m = mediaItem(c.mediaId);
+                    if (!m || m->width <= 0)
+                        continue;
+                    for (Effect &e : c.effects) {
+                        if (e.type != QLatin1String("transform"))
+                            continue;
+                        e.params[QStringLiteral("scale")] = std::round(Reframe::fillScale(m->width, m->height, p.width, p.height) * 10) / 10;
+                        e.params[QStringLiteral("x")] = 0.0;
+                        QList<Reframe::Sample> path;
+                        for (const QVariant &v : c.genParams.value(QStringLiteral("reframePath")).toList())
+                            path.append({v.toList().value(0).toDouble(), v.toList().value(1).toDouble(), 1});
+                        e.keyframes = Reframe::keyframes(path, 0, c.duration(), fps(), m->width, m->height, p.width, p.height, e.params);
+                        if (e.keyframes.size() <= 1) {
+                            if (!e.keyframes.isEmpty())
+                                e.params = e.keyframes.first().values;
+                            e.keyframes.clear();
+                        }
+                    }
+                }
+            }
+            const QString base = QDir(dir).filePath(QStringLiteral("%1-%2-%3").arg(index, 2, 10, QLatin1Char('0')).arg(slug(seq.info.value(QStringLiteral("title")).toString()), p.id));
+            const ExportPreset preset = Exporter::preset(p.exportPreset);
+            queueRender(d, preset.id, base + QLatin1Char('.') + preset.extension, true, -1, -1, -1);
+            // sidecar captions for platforms that take them
+            const QList<Captions::Cue> cues = timelineCues(d.doc.timeline, d.settings);
+            if (!cues.isEmpty()) {
+                QFile srt(base + QStringLiteral(".srt"));
+                if (srt.open(QIODevice::WriteOnly))
+                    srt.write(Captions::toSrt(cues).toUtf8());
+            }
+            ++queued;
+        }
+    }
+    setStatus(queued ? tr("%n export(s) added to the render queue", nullptr, queued) : tr("There are no generated cuts to export"));
 }
 
 void Editor::splitOnSilence(const QString &clipId, double noiseDb, double minSeconds, bool removeSilence)
@@ -2299,7 +2822,17 @@ void Editor::searchTranscripts(const QString &query)
     }
     // subtitles already on the timeline
     for (const Track &t : currentTimeline().tracks)
-        for (const Clip &c : t.clips)
+        for (const Clip &c : t.clips) {
+            if (Captions::isCaption(c)) {
+                const QString text = Captions::joinWords(Captions::clipWords(c));
+                if (!AiTools::search({{0, 0, text}}, query).isEmpty())
+                    m_searchResults.append(QVariantMap{{QStringLiteral("mediaId"), QString()},
+                                                       {QStringLiteral("name"), t.name},
+                                                       {QStringLiteral("frame"), c.position},
+                                                       {QStringLiteral("text"), text},
+                                                       {QStringLiteral("timeline"), true}});
+                continue;
+            }
             for (const Effect &e : c.effects)
                 if (e.type == QLatin1String("text")) {
                     const QList<AiTools::SubtitleCue> hit = AiTools::search({{0, 0, e.params.value(QStringLiteral("text")).toString()}}, query);
@@ -2310,6 +2843,7 @@ void Editor::searchTranscripts(const QString &query)
                                                            {QStringLiteral("text"), hit.first().text},
                                                            {QStringLiteral("timeline"), true}});
                 }
+        }
     Q_EMIT searchResultsChanged();
 }
 
@@ -2343,10 +2877,22 @@ void Editor::queueExport(const QString &presetId, const QUrl &output, bool hardw
         out = suggestedExportPath(presetId);
     if (QFileInfo(out).suffix().isEmpty())
         out += QLatin1Char('.') + preset.extension;
+    int in = -1, outFrame = -1;
+    if (inOutOnly && m_player->markIn() >= 0) {
+        in = m_player->markIn();
+        outFrame = m_player->markOut() >= 0 ? m_player->markOut() : -1;
+    }
+    queueRender(projectData(), presetId, out, hardware, quality, in, outFrame);
+    setStatus(tr("Added to the render queue"));
+}
+
+void Editor::queueRender(const ProjectData &data, const QString &presetId, const QString &out, bool hardware, int quality, int in, int outFrame)
+{
+    const ExportPreset preset = Exporter::preset(presetId);
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/renders");
     QDir().mkpath(dir);
-    const QString project = QDir(dir).filePath(QStringLiteral("render-%1.mlt").arg(QDateTime::currentMSecsSinceEpoch()));
-    ProjectData data = projectData();
+    static int serial = 0;
+    const QString project = QDir(dir).filePath(QStringLiteral("render-%1-%2.mlt").arg(QDateTime::currentMSecsSinceEpoch()).arg(++serial));
     QString error;
     if (!ProjectIO::save(project, data, &error)) {
         setStatus(tr("Could not prepare the render: %1").arg(error));
@@ -2358,23 +2904,20 @@ void Editor::queueExport(const QString &presetId, const QUrl &output, bool hardw
     s.hardware = hardware;
     s.quality = quality;
     s.threads = std::clamp(QThread::idealThreadCount() / 2, 1, 8);
-    if (inOutOnly && m_player->markIn() >= 0) {
-        s.in = m_player->markIn();
-        s.out = m_player->markOut() >= 0 ? m_player->markOut() : -1;
-    }
+    s.in = in;
+    s.out = outFrame;
     RenderQueue::Job job;
     job.name = QFileInfo(out).fileName();
     job.output = out;
     job.preset = preset.name;
     job.projectFile = project;
-    job.args = Exporter::meltArguments(project, s, m_hw, m_settings, &job.encoder);
+    job.args = Exporter::meltArguments(project, s, m_hw, data.settings, &job.encoder);
     if (job.encoder.endsWith(QLatin1String("_nvenc")) || job.encoder.endsWith(QLatin1String("_vaapi"))) {
         Exporter::Settings sw = s;
         sw.hardware = false;
-        job.fallbackArgs = Exporter::meltArguments(project, sw, m_hw, m_settings, &job.fallbackEncoder);
+        job.fallbackArgs = Exporter::meltArguments(project, sw, m_hw, data.settings, &job.fallbackEncoder);
     }
     m_renderQueue->add(job);
-    setStatus(tr("Added to the render queue"));
 }
 
 // ------------------------------------------------------------------ helpers

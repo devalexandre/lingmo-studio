@@ -1,0 +1,17 @@
+{
+ "text": " Olá pessoal. Hoje vamos falar sobre edição de vídeo.",
+ "language": "pt",
+ "segments": [
+  {"id": 0, "seek": 0, "start": 0.0, "end": 1.2, "text": " Olá pessoal.",
+   "words": [{"start": 0.0, "end": 0.42, "word": " Olá", "probability": 0.93},
+             {"start": 0.42, "end": 1.1, "word": " pessoal.", "probability": 0.97}]},
+  {"id": 1, "seek": 0, "start": 1.6, "end": 4.0, "text": " Hoje vamos falar sobre edição de vídeo.",
+   "words": [{"start": 1.6, "end": 1.9, "word": " Hoje", "probability": 0.9},
+             {"start": 1.9, "end": 2.2, "word": " vamos", "probability": 0.9},
+             {"start": 2.2, "end": 2.5, "word": " falar", "probability": 0.9},
+             {"start": 2.5, "end": 2.8, "word": " sobre", "probability": 0.9},
+             {"start": 2.8, "end": 3.3, "word": " edição", "probability": 0.9},
+             {"start": 3.3, "end": 3.4, "word": " de", "probability": 0.9},
+             {"start": 3.4, "end": 4.0, "word": " vídeo.", "probability": 0.9}]}
+ ]
+}

@@ -34,6 +34,14 @@ class Player;
 class RenderQueue;
 class Scopes;
 class Recorder;
+class Transcriber;
+class ShortsGenerator;
+namespace Studio::Reframe {
+struct Sample;
+}
+namespace Studio::Captions {
+struct Word;
+}
 
 class Editor : public QObject
 {
@@ -64,8 +72,8 @@ class Editor : public QObject
     Q_PROPERTY(QStringList projectPresets READ projectPresets CONSTANT)
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
     Q_PROPERTY(QString busyTask READ busyTask NOTIFY busyChanged)
-    Q_PROPERTY(bool whisperAvailable READ whisperAvailable CONSTANT)
-    Q_PROPERTY(QString whisperEngine READ whisperEngine CONSTANT)
+    Q_PROPERTY(bool whisperAvailable READ whisperAvailable NOTIFY whisperChanged)
+    Q_PROPERTY(QString whisperEngine READ whisperEngine NOTIFY whisperChanged)
     Q_PROPERTY(bool ollamaAvailable READ ollamaAvailable CONSTANT)
     Q_PROPERTY(QStringList hwEncoders READ hwEncoders NOTIFY hwEncodersChanged)
     Q_PROPERTY(bool hwDetected READ hwDetected NOTIFY hwEncodersChanged)
@@ -79,6 +87,13 @@ class Editor : public QObject
     Q_PROPERTY(QObject *renderQueue READ renderQueueObject CONSTANT)
     Q_PROPERTY(QObject *scopes READ scopesObject CONSTANT)
     Q_PROPERTY(QObject *recorder READ recorderObject CONSTANT)
+    Q_PROPERTY(QObject *transcriber READ transcriberObject CONSTANT)
+    Q_PROPERTY(QObject *shorts READ shortsObject CONSTANT)
+    Q_PROPERTY(QVariantList captionStyles READ captionStyles CONSTANT)
+    Q_PROPERTY(QVariantMap captionTrackStyle READ captionTrackStyle NOTIFY documentChanged)
+    Q_PROPERTY(bool hasCaptions READ hasCaptions NOTIFY documentChanged)
+    Q_PROPERTY(bool captionsBusy READ captionsBusy NOTIFY captionsBusyChanged)
+    Q_PROPERTY(QVariantList shortSequences READ shortSequences NOTIFY documentChanged)
 
 public:
     explicit Editor(QObject *parent = nullptr);
@@ -144,6 +159,31 @@ public:
     QObject *scopesObject() const;
     QObject *recorderObject() const;
     Player *player() const { return m_player; }
+    Transcriber *transcriber() const { return m_transcriber; }
+    QObject *transcriberObject() const;
+    QObject *shortsObject() const;
+    QVariantList captionStyles() const;
+    QVariantMap captionTrackStyle() const;
+    bool hasCaptions() const;
+    bool captionsBusy() const { return !m_captionClip.isEmpty(); }
+    QVariantList shortSequences() const;
+
+    // ---- Shorts (see shorts.h)
+    struct ShortCut {
+        qint64 startMs = 0;
+        qint64 endMs = 0;
+        QString title;
+        QString reason;
+        double score = 0;
+    };
+    // One sequence (compound clip) per cut, laid out on the main timeline.
+    // Returns {sequence id, video clip id} per cut. styleId empty = no captions.
+    QList<QPair<QString, QString>> createShorts(const Studio::MediaItem &media, const QList<ShortCut> &cuts, const QStringList &platforms,
+                                                const QString &styleId, const QList<Studio::Captions::Word> &words);
+    // Position X keyframes from a subject path (times relative to the clip start)
+    void applyReframe(const QString &sequenceId, const QString &clipId, const QList<Studio::Reframe::Sample> &samples);
+    // Queues a render of a project (export and batch export)
+    void queueRender(const Studio::ProjectData &data, const QString &presetId, const QString &output, bool hardware, int quality, int in, int out);
 
     void setStatus(const QString &s);
     void setBusy(const QString &task);
@@ -244,6 +284,27 @@ public:
     Q_INVOKABLE void smartReframe(const QString &aspect = QStringLiteral("9:16"));
     Q_INVOKABLE void searchTranscripts(const QString &query);
 
+    // -------- captions (word-timed, see captions.h)
+    // Transcribes the clip (or the selected/first clip with sound) and puts
+    // captions on a caption track with the chosen style preset.
+    Q_INVOKABLE void generateCaptions(const QString &clipId = {}, const QString &styleId = QStringLiteral("classic"));
+    Q_INVOKABLE void cancelCaptions();
+    Q_INVOKABLE QVariantMap captionStylePreset(const QString &id) const;
+    // Applies a style (preset map + overrides) to the caption tracks of the open timeline
+    Q_INVOKABLE void setCaptionStyle(const QVariantMap &style);
+    Q_INVOKABLE bool setCaptionText(const QString &clipId, const QString &text);
+    Q_INVOKABLE bool setCaptionWord(const QString &clipId, int index, const QString &text);
+    Q_INVOKABLE QString splitCaption(const QString &clipId, int wordIndex);
+    Q_INVOKABLE bool mergeCaption(const QString &clipId);
+    Q_INVOKABLE bool nudgeCaptionWord(const QString &clipId, int index, int deltaMs);
+    Q_INVOKABLE bool setCaptionSpeaker(const QString &clipId, int speaker);
+    Q_INVOKABLE bool toggleCaptionEmphasis(const QString &clipId, int index);
+    // srt | vtt | ass
+    Q_INVOKABLE bool exportCaptions(const QUrl &file, const QString &format = QStringLiteral("srt"));
+    Q_INVOKABLE void openTranscriptionSettings();
+    // Batch export of the generated cuts: one file per cut and platform (+ .srt)
+    Q_INVOKABLE void exportShorts(const QUrl &folder);
+
     // -------- export
     Q_INVOKABLE void queueExport(const QString &presetId, const QUrl &output, bool hardware, int quality, bool inOutOnly);
     Q_INVOKABLE QString suggestedExportPath(const QString &presetId) const;
@@ -275,6 +336,8 @@ Q_SIGNALS:
     void sequenceChanged();
     void darkUiChanged();
     void documentChanged();
+    void captionsBusyChanged();
+    void whisperChanged();
     void error(const QString &message);
 
 private:
@@ -295,6 +358,7 @@ private:
     int defaultTrack(Studio::TrackKind kind) const;
     QVariantMap clipToMap(const Studio::Clip &clip, int track) const;
     Studio::Planner planner(bool useProxies) const;
+    void captionsTranscribed();
     void runTool(const QString &task, const QString &program, const QStringList &args, std::function<void(int, const QString &)> done);
 
     Studio::Document m_doc;
@@ -326,4 +390,8 @@ private:
     RenderQueue *m_renderQueue;
     Scopes *m_scopes;
     Recorder *m_recorder;
+    Transcriber *m_transcriber;
+    ShortsGenerator *m_shorts;
+    QString m_captionClip;  // clip being transcribed for captions
+    QString m_captionStyleId;
 };
