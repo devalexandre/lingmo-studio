@@ -35,6 +35,7 @@
 #include <QFutureWatcher>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLocale>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSettings>
@@ -593,8 +594,42 @@ bool Editor::saveProject()
     addRecent(m_path);
     QFile::remove(autosavePath());
     QFile::remove(autosavePath() + QStringLiteral(".json"));
+    writePoster();
     setStatus(tr("Saved %1").arg(QFileInfo(m_path).fileName()));
     return true;
+}
+
+static QString posterPath(const QString &projectPath)
+{
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/posters");
+    return dir + QLatin1Char('/')
+        + QString::fromLatin1(QCryptographicHash::hash(QFileInfo(projectPath).absoluteFilePath().toUtf8(), QCryptographicHash::Sha1).toHex().left(16))
+        + QStringLiteral(".jpg");
+}
+
+// The frame on screen when the project is saved becomes its card picture
+// on the start screen
+void Editor::writePoster()
+{
+    if (m_path.isEmpty())
+        return;
+    const QImage frame = m_player->currentImage();
+    if (frame.isNull() || frame.width() < 8)
+        return;
+    const QString path = posterPath(m_path);
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    frame.scaledToWidth(std::min(480, frame.width()), Qt::SmoothTransformation).convertToFormat(QImage::Format_RGB32).save(path, "JPG", 85);
+}
+
+QVariantMap Editor::projectInfo(const QString &path) const
+{
+    const QFileInfo fi(path);
+    const QString poster = posterPath(path);
+    return {{QStringLiteral("name"), fi.completeBaseName()},
+            {QStringLiteral("folder"), QDir::toNativeSeparators(fi.absolutePath()).replace(QDir::homePath(), QStringLiteral("~"))},
+            {QStringLiteral("modified"), fi.exists() ? QLocale().toString(fi.lastModified(), QLocale::ShortFormat) : QString()},
+            {QStringLiteral("exists"), fi.exists()},
+            {QStringLiteral("poster"), QFileInfo::exists(poster) ? QUrl::fromLocalFile(poster).toString() : QString()}};
 }
 
 bool Editor::saveProjectAs(const QUrl &url)
@@ -1936,6 +1971,39 @@ void Editor::setWheel(const QString &clipId, const QString &range, double r, dou
         w->params[range + QStringLiteral("_b")] = b;
         return true;
     }, MergeParam, clipId + QStringLiteral("/wheel/") + range);
+}
+
+void Editor::setWheelOffset(const QString &clipId, double r, double g, double b)
+{
+    modify(tr("Color wheel"), [&](Timeline &tl, Document &, QString *) {
+        Clip *c = tl.clip(clipId);
+        if (!c)
+            return false;
+        Effect *w = nullptr;
+        for (Effect &e : c->effects)
+            if (e.type == QLatin1String("wheels"))
+                w = &e;
+        if (!w) {
+            c->effects.append(EffectRegistry::create(QStringLiteral("wheels")));
+            w = &c->effects.last();
+        }
+        // y = gain * (x + lift * (1 - x)): slope s = gain * (1 - lift), offset d = gain * lift.
+        // A new offset d' keeps the slope: gain' = s + d', lift' = d' / gain'.
+        const double offsets[3] = {r, g, b};
+        const char *channels[3] = {"r", "g", "b"};
+        for (int i = 0; i < 3; ++i) {
+            const QString lk = QStringLiteral("lift_") + QLatin1String(channels[i]);
+            const QString gk = QStringLiteral("gain_") + QLatin1String(channels[i]);
+            const double lift = w->params.value(lk, 0.0).toDouble();
+            const double gain = w->params.value(gk, 1.0).toDouble();
+            const double slope = std::max(0.05, gain * (1.0 - lift));
+            const double newGain = std::clamp(slope + offsets[i], 0.05, 4.0);
+            const double newLift = std::clamp((newGain - slope) / newGain, -0.5, 0.5);
+            w->params[lk] = newLift;
+            w->params[gk] = newGain;
+        }
+        return true;
+    }, MergeParam, clipId + QStringLiteral("/wheel/offset"));
 }
 
 QImage Editor::beforeAfterFrame(bool before, int width) const

@@ -24,15 +24,32 @@ LingmoUI.Window {
     visible: true
     title: (editor.dirty ? "• " : "") + editor.projectName + " — Lingmo Studio"
 
-    background.opacity: LingmoUI.Theme.darkMode ? 0.88 : 0.97
+    background.opacity: 1
+    background.color: StudioTheme.window
     header.height: LingmoUI.Units.windowHeaderHeight
     contentTopMargin: 0
 
-    readonly property var pageIds: ["edit", "color", "effects", "audio", "deliver"]
-    property int page: Math.max(0, pageIds.indexOf(startPage))
+    // Pages along the bottom, in the order of a finishing workflow
+    readonly property var pages: [
+        { id: "media", label: qsTr("Media"), icon: "page-media", shortcut: "Shift+2" },
+        { id: "cut", label: qsTr("Cut"), icon: "page-cut", shortcut: "Shift+3" },
+        { id: "edit", label: qsTr("Edit"), icon: "page-edit", shortcut: "Shift+4" },
+        { id: "effects", label: qsTr("Effects"), icon: "page-effects", shortcut: "Shift+5" },
+        { id: "color", label: qsTr("Color"), icon: "page-color", shortcut: "Shift+6" },
+        { id: "audio", label: qsTr("Audio"), icon: "page-audio", shortcut: "Shift+7" },
+        { id: "deliver", label: qsTr("Deliver"), icon: "page-deliver", shortcut: "Shift+8" }
+    ]
+    readonly property var pageIds: pages.map(function(p) { return p.id })
+    readonly property int deliverPage: pageIds.indexOf("deliver")
+    property int page: pageIds.indexOf(startPage) >= 0 ? pageIds.indexOf(startPage) : pageIds.indexOf("edit")
     property bool showStart: startPage.length === 0 && editor.mediaBin.count === 0 && editor.timeline.duration <= 1
     property bool showShorts: startPage === "shorts"
 
+    function goToPage(index) {
+        page = index
+        showStart = false
+        showShorts = false
+    }
     function openCaptions(clipId) { captionsDialog.openFor(clipId) }
     function openShorts(mediaId) {
         if (mediaId)
@@ -45,24 +62,25 @@ LingmoUI.Window {
     property string tool: "select"
     property bool snapping: true
     property bool rippleMode: false
+    property bool linkedSelection: true
 
-    LingmoUI.WindowBlur {
-        view: root
-        geometry: Qt.rect(root.x, root.y, root.width, root.height)
-        windowRadius: root.windowRadius
-        enabled: true
-    }
-
-    // Editors are dark by convention (judging color needs a neutral, dim
-    // surround); Settings > Appearance can follow the system instead.
+    // Editors are dark by convention: judging picture and colour needs a
+    // neutral, dim surround. The studio is charcoal whatever the system
+    // theme, and the shared Lingmo components take its palette.
     function applyTheme() {
-        if (editor.darkUi) {
-            LingmoTheme.darkMode = LingmoThemeType.Dark
-            LingmoUI.Theme.darkMode = true
-        } else {
-            LingmoTheme.darkMode = LingmoThemeType.System
-            LingmoUI.Theme.darkMode = Qt.binding(function() { return LingmoTheme.dark })
-        }
+        LingmoTheme.darkMode = LingmoThemeType.Dark
+        LingmoUI.Theme.darkMode = true
+        LingmoUI.Theme.backgroundColor = StudioTheme.window
+        LingmoUI.Theme.secondBackgroundColor = StudioTheme.panel
+        LingmoUI.Theme.alternateBackgroundColor = StudioTheme.raised
+        LingmoUI.Theme.textColor = StudioTheme.text
+        LingmoUI.Theme.secondaryTextColor = StudioTheme.textSecondary
+        LingmoUI.Theme.disabledTextColor = StudioTheme.textDisabled
+        LingmoUI.Theme.highlightColor = StudioTheme.accent
+        LingmoUI.Theme.borderColor = StudioTheme.border
+        LingmoUI.Theme.dividerColor = StudioTheme.divider
+        LingmoUI.Theme.blueColor = StudioTheme.trackVideo
+        LingmoUI.Theme.greenColor = StudioTheme.trackAudio
     }
     Component.onCompleted: {
         applyTheme()
@@ -71,7 +89,6 @@ LingmoUI.Window {
     }
     Connections {
         target: editor
-        function onDarkUiChanged() { root.applyTheme() }
         function onError(message) { root.showPassiveNotification(message) }
     }
 
@@ -84,12 +101,75 @@ LingmoUI.Window {
         editor.cleanExit()
     }
 
+    // ------------------------------------------------------------ edits shared by the pages
+    // Three-point edits from the source viewer (Resolve's F9, F10, F12, Shift+F12)
+    function topVideoTrack() {
+        const tl = editor.timeline
+        for (let t = 0; t < tl.trackCount; ++t)
+            if (tl.trackKind(t) === "video")
+                return t
+        return -1
+    }
+    function editFromSource(mode) {
+        const p = editor.player
+        const id = p.sourceMediaId
+        if (!id) {
+            root.showPassiveNotification(qsTr("Choose a clip in the media pool first"))
+            return
+        }
+        const inF = p.sourceIn >= 0 ? p.sourceIn : 0
+        const outF = p.sourceOut >= 0 ? p.sourceOut : -1
+        let at = p.timelinePosition
+        let track = -1
+        let ripple = false
+        if (mode === "append") {
+            at = editor.timeline.duration
+        } else if (mode === "insert") {
+            ripple = true
+        } else if (mode === "top") {
+            track = topVideoTrack()
+            const end = outF >= 0 ? at + outF - inF + 1 : Number.MAX_SAFE_INTEGER
+            const clips = track >= 0 ? editor.timeline.clipsOf(track) : []
+            const busy = clips.some(function(c) { return c.position < end && c.position + c.duration > at })
+            if (track < 0 || busy) {
+                editor.addTrack("video")
+                track = topVideoTrack()
+            }
+        }
+        p.setMode("timeline")
+        editor.addMediaToTimeline(id, track, at, inF, outF, ripple)
+    }
+    // Trims the nearer edge of the clip under the playhead to the playhead,
+    // closing the gap (ripple)
+    function smartTrim() {
+        const at = editor.player.timelinePosition
+        let id = ""
+        const sel = editor.selectedClip
+        if (sel && sel.id !== undefined && sel.position < at && sel.position + sel.duration > at)
+            id = sel.id
+        const tl = editor.timeline
+        for (let t = 0; t < tl.trackCount && !id; ++t)
+            if (tl.trackKind(t) === "video")
+                id = editor.clipAt(t, at)
+        for (let t = 0; t < tl.trackCount && !id; ++t)
+            id = editor.clipAt(t, at)
+        if (!id) {
+            root.showPassiveNotification(qsTr("Move the playhead over a clip to trim it"))
+            return
+        }
+        const c = editor.clipInfo(id)
+        if (at <= c.position || at >= c.position + c.duration)
+            return
+        const left = at - c.position < c.position + c.duration - at
+        editor.trimClip(id, left, at, true)
+    }
+
     // ------------------------------------------------------------ file dialogs
     FileDialog {
         id: openDialog
         title: qsTr("Open project")
         nameFilters: [qsTr("MLT projects (*.mlt)"), qsTr("All files (*)")]
-        onAccepted: editor.openProject(selectedFile)
+        onAccepted: { if (editor.openProject(selectedFile)) root.showStart = false }
     }
     FileDialog {
         id: saveDialog
@@ -112,19 +192,12 @@ LingmoUI.Window {
         nameFilters: editor.mediaNameFilters()
         onAccepted: editor.importUrls(selectedFiles)
     }
+    function importMedia() { importDialog.open() }
     FileDialog {
         id: srtOpenDialog
         title: qsTr("Import subtitles")
         nameFilters: [qsTr("Subtitles (*.srt)")]
         onAccepted: editor.importSubtitles(selectedFile)
-    }
-    FileDialog {
-        id: srtSaveDialog
-        title: qsTr("Export subtitles")
-        fileMode: FileDialog.SaveFile
-        defaultSuffix: "srt"
-        nameFilters: [qsTr("Subtitles (*.srt)")]
-        onAccepted: editor.exportSubtitles(selectedFile)
     }
 
     function transitionLabel(type) {
@@ -141,6 +214,7 @@ LingmoUI.Window {
         if (!editor.saveProject())
             saveDialog.open()
     }
+    function openProjectDialog() { openDialog.open() }
 
     ProjectSettingsDialog { id: settingsDialog }
     CaptionsDialog { id: captionsDialog }
@@ -164,7 +238,7 @@ LingmoUI.Window {
         title: qsTr("Save changes to %1?").arg(editor.projectName)
         contentItem: Label {
             text: qsTr("Your changes will be lost if you don't save them.")
-            color: LingmoUI.Theme.secondaryTextColor
+            color: StudioTheme.textSecondary
             font.pointSize: LingmoUI.Units.fontBody
             wrapMode: Text.WordWrap
         }
@@ -197,7 +271,7 @@ LingmoUI.Window {
         }
     }
 
-    // ------------------------------------------------------------ menus
+    // ------------------------------------------------------------ menu
     Menu {
         id: fileMenu
         MenuItem { text: qsTr("New project"); onTriggered: root.showStart = true }
@@ -207,7 +281,7 @@ LingmoUI.Window {
             enabled: editor.recentProjects.length > 0
             Repeater {
                 model: editor.recentProjects
-                MenuItem { text: modelData; onTriggered: editor.openPath(modelData) }
+                MenuItem { text: modelData; onTriggered: { if (editor.openPath(modelData)) root.showStart = false } }
             }
         }
         MenuSeparator {}
@@ -233,12 +307,6 @@ LingmoUI.Window {
             checkable: true
             checked: editor.autoProxy
             onToggled: editor.autoProxy = checked
-        }
-        MenuItem {
-            text: qsTr("Dark interface")
-            checkable: true
-            checked: editor.darkUi
-            onToggled: editor.darkUi = checked
         }
         MenuSeparator {}
         MenuItem { text: qsTr("Quit"); onTriggered: root.close() }
@@ -273,10 +341,15 @@ LingmoUI.Window {
     Shortcut { sequence: "Shift+F"; enabled: !root.typing(); onActivated: editor.freezeFrame() }
     Shortcut { sequence: "A"; enabled: !root.typing(); onActivated: root.tool = "select" }
     Shortcut { sequence: "B"; enabled: !root.typing(); onActivated: root.tool = "razor" }
-    Shortcut { sequence: "R"; enabled: !root.typing(); onActivated: root.tool = "roll" }
+    Shortcut { sequences: ["T", "R"]; enabled: !root.typing(); onActivated: root.tool = "roll" }
     Shortcut { sequence: "Y"; enabled: !root.typing(); onActivated: root.tool = "slip" }
     Shortcut { sequence: "U"; enabled: !root.typing(); onActivated: root.tool = "slide" }
     Shortcut { sequence: "N"; enabled: !root.typing(); onActivated: root.snapping = !root.snapping }
+    Shortcut { sequence: "Ctrl+Shift+L"; enabled: !root.typing(); onActivated: root.linkedSelection = !root.linkedSelection }
+    Shortcut { sequence: "F9"; onActivated: root.editFromSource("insert") }
+    Shortcut { sequence: "F10"; onActivated: root.editFromSource("overwrite") }
+    Shortcut { sequence: "F12"; onActivated: root.editFromSource("top") }
+    Shortcut { sequence: "Shift+F12"; onActivated: root.editFromSource("append") }
     Shortcut { sequences: [StandardKey.Undo]; enabled: !root.typing(); onActivated: editor.undo() }
     Shortcut { sequences: [StandardKey.Redo, "Ctrl+Shift+Z"]; enabled: !root.typing(); onActivated: editor.redo() }
     Shortcut { sequences: [StandardKey.Save]; onActivated: root.save() }
@@ -286,12 +359,15 @@ LingmoUI.Window {
     Shortcut { sequence: "Ctrl+I"; onActivated: importDialog.open() }
     Shortcut { sequence: "Ctrl+A"; enabled: !root.typing(); onActivated: editor.selectAll() }
     Shortcut { sequence: "Escape"; enabled: !root.typing(); onActivated: editor.clearSelection() }
-    Shortcut { sequence: "Ctrl+M"; enabled: !root.typing(); onActivated: root.page = 4 }
-    Shortcut { sequence: "Shift+1"; onActivated: root.page = 0 }
-    Shortcut { sequence: "Shift+2"; onActivated: root.page = 1 }
-    Shortcut { sequence: "Shift+3"; onActivated: root.page = 2 }
-    Shortcut { sequence: "Shift+4"; onActivated: root.page = 3 }
-    Shortcut { sequence: "Shift+5"; onActivated: root.page = 4 }
+    Shortcut { sequence: "Ctrl+M"; enabled: !root.typing(); onActivated: root.goToPage(root.deliverPage) }
+    Shortcut { sequence: "Shift+1"; onActivated: { root.showShorts = false; root.showStart = true } }
+    Shortcut { sequence: "Shift+2"; onActivated: root.goToPage(0) }
+    Shortcut { sequence: "Shift+3"; onActivated: root.goToPage(1) }
+    Shortcut { sequence: "Shift+4"; onActivated: root.goToPage(2) }
+    Shortcut { sequence: "Shift+5"; onActivated: root.goToPage(3) }
+    Shortcut { sequence: "Shift+6"; onActivated: root.goToPage(4) }
+    Shortcut { sequence: "Shift+7"; onActivated: root.goToPage(5) }
+    Shortcut { sequence: "Shift+8"; onActivated: root.goToPage(6) }
 
     // Files dragged in from the file manager
     DropArea {
@@ -310,95 +386,119 @@ LingmoUI.Window {
     // ------------------------------------------------------------ layout
     ColumnLayout {
         anchors.fill: parent
-        anchors.leftMargin: LingmoUI.Units.smallSpacing
-        anchors.rightMargin: LingmoUI.Units.smallSpacing
-        anchors.bottomMargin: LingmoUI.Units.smallSpacing
-        spacing: LingmoUI.Units.smallSpacing
+        spacing: 0
 
-        // Top strip, shared with the window buttons on the left
-        RowLayout {
+        // Top bar: menu, undo/redo | project and save state | export.
+        // It shares the strip with the window buttons on the left.
+        Item {
             Layout.fillWidth: true
             Layout.preferredHeight: root.header.height
-            spacing: LingmoUI.Units.smallSpacing
 
-            Item { Layout.preferredWidth: LingmoUI.Units.windowControlsInset }
-            LingmoUI.IconButton {
-                iconName: "open-menu-symbolic"
-                tipText: qsTr("Menu")
-                onClicked: fileMenu.popup(this, 0, height)
+            RowLayout {
+                anchors.left: parent.left
+                anchors.leftMargin: LingmoUI.Units.windowControlsInset
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+                StudioButton { iconName: "menu"; tip: qsTr("Menu"); onClicked: fileMenu.popup(this, 0, height) }
+                Rectangle { width: 1; height: 16; color: StudioTheme.border; Layout.leftMargin: 4; Layout.rightMargin: 4 }
+                StudioButton {
+                    iconName: "undo"
+                    tip: editor.canUndo ? qsTr("Undo %1").arg(editor.undoText) : qsTr("Undo")
+                    shortcut: "Ctrl+Z"
+                    enabled: editor.canUndo
+                    onClicked: editor.undo()
+                }
+                StudioButton {
+                    iconName: "redo"
+                    tip: editor.canRedo ? qsTr("Redo %1").arg(editor.redoText) : qsTr("Redo")
+                    shortcut: "Ctrl+Shift+Z"
+                    enabled: editor.canRedo
+                    onClicked: editor.redo()
+                }
             }
-            Label {
-                text: "Lingmo Studio"
-                font.pointSize: LingmoUI.Units.fontSubheading
-                font.bold: true
-                color: LingmoUI.Theme.textColor
+
+            // project name and save state, centred like a title
+            Row {
+                anchors.centerIn: parent
+                spacing: 10
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: editor.projectName
+                    color: StudioTheme.text
+                    font.family: StudioTheme.font
+                    font.pixelSize: StudioTheme.fontLarge
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideMiddle
+                    width: Math.min(implicitWidth, 360)
+                }
+                AbstractButton {
+                    id: saveState
+                    anchors.verticalCenter: parent.verticalCenter
+                    hoverEnabled: true
+                    width: stateRow.implicitWidth + 16
+                    height: 22
+                    onClicked: root.save()
+                    ToolTip.visible: hovered
+                    ToolTip.text: StudioTheme.tip(qsTr("Save"), "Ctrl+S")
+                    ToolTip.delay: 450
+                    background: Rectangle {
+                        radius: 11
+                        color: saveState.hovered ? StudioTheme.raisedHover : StudioTheme.raised
+                        Behavior on color { ColorAnimation { duration: StudioTheme.fast } }
+                    }
+                    contentItem: Item {
+                        Row {
+                            id: stateRow
+                            anchors.centerIn: parent
+                            spacing: 6
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 6
+                                height: 6
+                                radius: 3
+                                color: editor.dirty ? StudioTheme.warning : editor.projectPath.length ? StudioTheme.success : StudioTheme.textDisabled
+                                Behavior on color { ColorAnimation { duration: StudioTheme.normal } }
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: !editor.projectPath.length ? qsTr("Not saved yet") : editor.dirty ? qsTr("Unsaved changes") : qsTr("Saved")
+                                color: StudioTheme.textSecondary
+                                font.family: StudioTheme.font
+                                font.pixelSize: StudioTheme.fontSmall
+                            }
+                        }
+                    }
+                }
             }
-            Label {
-                text: "· " + editor.projectName + (editor.dirty ? " •" : "")
-                font.pointSize: LingmoUI.Units.fontBody
-                color: LingmoUI.Theme.secondaryTextColor
-                elide: Text.ElideRight
-                Layout.maximumWidth: 260
+
+            RowLayout {
+                anchors.right: parent.right
+                anchors.rightMargin: StudioTheme.pad
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 8
+                LingmoUI.Spinner {
+                    running: editor.busyTask.length > 0 || editor.mediaBin.importing > 0 || editor.renderQueue.running
+                    visible: running
+                    size: 16
+                }
+                StudioButton {
+                    text: qsTr("Export")
+                    iconName: "export"
+                    iconSize: 14
+                    size: 26
+                    primary: true
+                    tip: qsTr("Open the Deliver page")
+                    shortcut: "Ctrl+M"
+                    onClicked: root.goToPage(root.deliverPage)
+                }
             }
-            Item { Layout.fillWidth: true }
-            LingmoUI.SegmentedControl {
-                id: pages
-                opacity: root.showShorts ? 0.5 : 1
-                model: [
-                    { text: qsTr("Edit"), iconName: "video-x-generic" },
-                    { text: qsTr("Color"), iconName: "color-management" },
-                    { text: qsTr("Effects"), iconName: "draw-bezier-curves" },
-                    { text: qsTr("Audio"), iconName: "audio-volume-high" },
-                    { text: qsTr("Deliver"), iconName: "document-export" }
-                ]
-                currentIndex: root.page
-                onActivated: function(index) { root.page = index; root.showStart = false; root.showShorts = false }
-            }
-            Item { Layout.fillWidth: true }
-            LingmoUI.Spinner {
-                running: editor.busyTask.length > 0 || editor.mediaBin.importing > 0 || editor.renderQueue.running
-                visible: running
-                size: LingmoUI.Units.iconSizes.small
-            }
-            LingmoUI.ActionButton {
-                text: qsTr("Generate cuts")
-                iconName: "edit-cut"
-                tipText: qsTr("Shorts, Reels and TikToks from a long video")
-                onClicked: root.showShorts ? (root.showShorts = false) : root.openShorts("")
-            }
-            LingmoUI.IconButton {
-                iconName: "format-text-color"
-                tipText: qsTr("Automatic captions")
-                onClicked: root.openCaptions("")
-            }
-            LingmoUI.IconButton {
-                iconName: "edit-undo"
-                tipText: editor.canUndo ? qsTr("Undo %1").arg(editor.undoText) : qsTr("Undo")
-                enabled: editor.canUndo
-                onClicked: editor.undo()
-            }
-            LingmoUI.IconButton {
-                iconName: "edit-redo"
-                tipText: editor.canRedo ? qsTr("Redo %1").arg(editor.redoText) : qsTr("Redo")
-                enabled: editor.canRedo
-                onClicked: editor.redo()
-            }
-            LingmoUI.IconButton {
-                iconName: "document-save"
-                tipText: qsTr("Save (Ctrl+S)")
-                onClicked: root.save()
-            }
-            LingmoUI.ActionButton {
-                text: qsTr("Export")
-                iconName: "document-export"
-                primary: true
-                onClicked: { root.page = 4; root.showStart = false }
-            }
-            Item { Layout.preferredWidth: LingmoUI.Units.smallSpacing }
         }
 
         LingmoUI.Banner {
             Layout.fillWidth: true
+            Layout.leftMargin: StudioTheme.gap
+            Layout.rightMargin: StudioTheme.gap
+            Layout.bottomMargin: StudioTheme.gap
             type: LingmoUI.Banner.Warning
             visible: editor.recoveryPath.length > 0
             title: visible ? qsTr("Recover unsaved work?") : ""
@@ -409,13 +509,21 @@ LingmoUI.Window {
         }
 
         StackLayout {
+            id: stack
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: root.showShorts ? 6 : root.showStart ? 5 : root.page
+            Layout.leftMargin: StudioTheme.gap
+            Layout.rightMargin: StudioTheme.gap
+            Layout.bottomMargin: StudioTheme.gap
+            currentIndex: root.showShorts ? 8 : root.showStart ? 7 : root.page
+            onCurrentIndexChanged: pageFade.restart()
+            NumberAnimation { id: pageFade; target: stack; property: "opacity"; from: 0.35; to: 1; duration: StudioTheme.normal; easing.type: Easing.OutCubic }
 
+            MediaPage { }
+            CutPage { }
             EditPage { }
-            ColorPage { active: root.page === 1 && !root.showStart }
             EffectsPage { }
+            ColorPage { active: root.page === 4 && !root.showStart && !root.showShorts }
             AudioPage { }
             DeliverPage { }
             StartPage {
@@ -428,29 +536,14 @@ LingmoUI.Window {
             }
         }
 
-        // Status line
-        RowLayout {
+        PageBar {
             Layout.fillWidth: true
-            Layout.leftMargin: LingmoUI.Units.smallSpacing
-            spacing: LingmoUI.Units.largeSpacing
-            Label {
-                Layout.fillWidth: true
-                text: editor.busyTask.length > 0 ? editor.busyTask : editor.status
-                color: LingmoUI.Theme.secondaryTextColor
-                font.pointSize: LingmoUI.Units.fontCaption
-                elide: Text.ElideRight
-            }
-            Label {
-                text: editor.projectWidth + "×" + editor.projectHeight + " · " + Number(editor.fps).toLocaleString(Qt.locale(), 'f', editor.fps % 1 ? 2 : 0) + " fps"
-                color: LingmoUI.Theme.secondaryTextColor
-                font.pointSize: LingmoUI.Units.fontCaption
-                MouseArea { anchors.fill: parent; onClicked: settingsDialog.open() }
-            }
-            Label {
-                text: editor.hwDetected ? (editor.hwEncoders.length > 0 ? qsTr("GPU encode: %1").arg(editor.hwEncoders.join(", ")) : qsTr("GPU encode: none")) : qsTr("Checking GPU encoders…")
-                color: LingmoUI.Theme.secondaryTextColor
-                font.pointSize: LingmoUI.Units.fontCaption
-            }
+            pages: root.pages
+            currentIndex: root.page
+            dimmed: root.showStart || root.showShorts
+            onActivated: function(index) { root.goToPage(index) }
+            onHomeRequested: { root.showShorts = false; root.showStart = true }
+            onFormatClicked: settingsDialog.open()
         }
     }
 }

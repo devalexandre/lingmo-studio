@@ -11,20 +11,34 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
-import LingmoUI.CompatibleModule 3.0 as LingmoUI
 
-// Deliver page: export presets, hardware encoding, render queue.
-RowLayout {
+// Deliver page: render settings on the left (preset cards, file, encoder,
+// quality, range), the viewer in the centre, the render queue on the right.
+SplitView {
     id: page
-    spacing: LingmoUI.Units.smallSpacing
+    orientation: Qt.Horizontal
+    handle: PanelHandle { }
 
     property string presetId: "mp4-h264"
+    // the usual destinations first
+    readonly property var order: ["youtube-1080p", "shorts-9x16", "mp4-h264", "prores-hq", "youtube-4k-hevc", "webm-vp9", "av1", "dnxhr-hq", "gif", "audio-mp3", "audio-wav"]
+    readonly property var presets: editor.exportPresets.slice().sort(function(a, b) {
+        const ia = order.indexOf(a.id), ib = order.indexOf(b.id)
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+    })
     readonly property var preset: {
         const list = editor.exportPresets
         for (let i = 0; i < list.length; ++i)
             if (list[i].id === presetId)
                 return list[i]
         return list[0]
+    }
+    function presetIcon(p) {
+        if (p.audioOnly)
+            return "music"
+        if (p.vertical)
+            return "phone"
+        return ({ "youtube-1080p": "widescreen", "youtube-4k-hevc": "widescreen", "gif": "image", "prores-hq": "film", "dnxhr-hq": "film" })[p.id] || "export"
     }
     property string output: ""
     onPresetChanged: output = editor.suggestedExportPath(presetId)
@@ -40,6 +54,7 @@ RowLayout {
         return editor.hwEncoders.indexOf(nv) >= 0 ? nv : (editor.hwEncoders.indexOf(va) >= 0 ? va : "")
     }
     readonly property bool projectVertical: editor.projectHeight > editor.projectWidth
+    readonly property bool hasQuality: preset && !preset.audioOnly && preset.codec !== "gif" && preset.codec !== "prores" && preset.codec !== "dnxhr"
 
     FileDialog {
         id: outputDialog
@@ -49,168 +64,266 @@ RowLayout {
         defaultSuffix: page.preset ? page.preset.extension : "mp4"
         onAccepted: page.output = editor.localPath(selectedFile)
     }
-
-    StudioPanel {
-        Layout.fillHeight: true
-        Layout.preferredWidth: 520
-        title: qsTr("Format")
-
-        GridView {
-            id: grid
-            anchors.fill: parent
-            anchors.margins: LingmoUI.Units.smallSpacing
-            cellWidth: width / 2
-            cellHeight: 76
-            clip: true
-            model: editor.exportPresets
-            boundsBehavior: Flickable.StopAtBounds
-            delegate: Item {
-                width: grid.cellWidth
-                height: grid.cellHeight
-                LingmoUI.Card {
-                    anchors.fill: parent
-                    anchors.margins: 3
-                    clickable: true
-                    highlighted: modelData.id === page.presetId
-                    onClicked: page.presetId = modelData.id
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: LingmoUI.Units.largeSpacing
-                        spacing: 2
-                        Label {
-                            Layout.fillWidth: true
-                            text: modelData.name
-                            font.pointSize: LingmoUI.Units.fontBody
-                            font.bold: true
-                            color: LingmoUI.Theme.textColor
-                            elide: Text.ElideRight
-                        }
-                        Label {
-                            Layout.fillWidth: true
-                            text: "." + modelData.extension + " · " + (modelData.audioOnly ? qsTr("audio") : (modelData.width > 0 ? (modelData.width + "×" + (modelData.height > 0 ? modelData.height : "…")) : qsTr("project size")))
-                            font.pointSize: LingmoUI.Units.fontCaption
-                            color: LingmoUI.Theme.secondaryTextColor
-                        }
-                    }
-                }
-            }
-        }
+    FileDialog {
+        id: srtSave
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "srt"
+        nameFilters: [qsTr("Subtitles (*.srt)")]
+        onAccepted: editor.exportSubtitles(selectedFile)
     }
 
+    component SettingLabel: Text {
+        color: StudioTheme.textSecondary
+        font.family: StudioTheme.font
+        font.pixelSize: StudioTheme.fontSmall
+        font.weight: Font.DemiBold
+    }
+
+    // ---------------------------------------------------- render settings
     StudioPanel {
-        Layout.fillHeight: true
-        Layout.preferredWidth: 420
-        title: qsTr("Settings")
+        title: qsTr("Render Settings")
+        SplitView.preferredWidth: 400
+        SplitView.minimumWidth: 330
 
-        ColumnLayout {
+        ScrollView {
+            id: settingsScroll
             anchors.fill: parent
-            anchors.margins: LingmoUI.Units.largeSpacing
-            spacing: LingmoUI.Units.largeSpacing
-
-            LingmoUI.Banner {
-                Layout.fillWidth: true
-                type: LingmoUI.Banner.Warning
-                closable: false
-                visible: page.preset && page.preset.vertical && !page.projectVertical
-                title: visible ? qsTr("This is a horizontal project") : ""
-                text: visible ? qsTr("Reframe it for 9:16 first, or the video gets black bars.") : ""
-                LingmoUI.ActionButton { text: qsTr("Reframe to 9:16"); onClicked: editor.smartReframe("9:16") }
-            }
-
-            Label { text: qsTr("File"); font.pointSize: LingmoUI.Units.fontCaption; color: LingmoUI.Theme.secondaryTextColor }
-            RowLayout {
-                Layout.fillWidth: true
-                TextField {
-                    Layout.fillWidth: true
-                    text: page.output
-                    onEditingFinished: page.output = text
-                }
-                LingmoUI.IconButton { iconName: "document-open"; tipText: qsTr("Choose…"); onClicked: outputDialog.open() }
-            }
-
-            Switch {
-                id: hw
-                text: page.hwFor.length > 0 ? qsTr("Use the graphics card (%1)").arg(page.hwFor) : qsTr("Use the graphics card")
-                checked: true
-                enabled: page.hwFor.length > 0
-            }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: !editor.hwDetected ? qsTr("Checking which encoders the graphics card offers…")
-                      : page.hwFor.length > 0 ? qsTr("Faster export; software encoding is used if it fails to start.")
-                      : qsTr("No working hardware encoder for this format; the CPU encodes it.")
-                color: LingmoUI.Theme.secondaryTextColor
-                font.pointSize: LingmoUI.Units.fontCaption
-            }
+            contentWidth: availableWidth
+            clip: true
 
             ColumnLayout {
-                Layout.fillWidth: true
-                visible: page.preset && !page.preset.audioOnly && page.preset.codec !== "gif" && page.preset.codec !== "prores" && page.preset.codec !== "dnxhr"
-                Label { text: qsTr("Quality"); font.pointSize: LingmoUI.Units.fontCaption; color: LingmoUI.Theme.secondaryTextColor }
-                RowLayout {
-                    Label { text: qsTr("Smaller"); font.pointSize: LingmoUI.Units.fontCaption; color: LingmoUI.Theme.secondaryTextColor }
-                    Slider {
-                        id: quality
-                        Layout.fillWidth: true
-                        from: 34; to: 14
-                        stepSize: 1
-                        value: 21
+                // fixed reserve for the scroll bar (see StartPage)
+                width: settingsScroll.width - 12
+                spacing: 10
+
+                // preset cards
+                GridLayout {
+                    Layout.fillWidth: true
+                    Layout.margins: StudioTheme.pad
+                    Layout.bottomMargin: 0
+                    columns: 2
+                    columnSpacing: 6
+                    rowSpacing: 6
+                    Repeater {
+                        model: page.presets
+                        AbstractButton {
+                            id: card
+                            readonly property bool current: modelData.id === page.presetId
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 62
+                            hoverEnabled: true
+                            onClicked: page.presetId = modelData.id
+                            background: Rectangle {
+                                radius: StudioTheme.radius
+                                color: card.current ? StudioTheme.accentSoft : card.hovered ? StudioTheme.raisedHover : StudioTheme.raised
+                                border.width: 1
+                                border.color: card.current ? StudioTheme.accent : StudioTheme.border
+                                Behavior on color { ColorAnimation { duration: StudioTheme.fast } }
+                                Behavior on border.color { ColorAnimation { duration: StudioTheme.fast } }
+                            }
+                            contentItem: RowLayout {
+                                spacing: 8
+                                StudioIcon {
+                                    Layout.leftMargin: 10
+                                    name: page.presetIcon(modelData)
+                                    size: 20
+                                    color: card.current ? StudioTheme.accent : StudioTheme.textSecondary
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    Layout.rightMargin: 8
+                                    spacing: 1
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: modelData.name
+                                        color: StudioTheme.text
+                                        font.family: StudioTheme.font
+                                        font.pixelSize: StudioTheme.fontSmall
+                                        font.weight: Font.DemiBold
+                                        wrapMode: Text.WordWrap
+                                        maximumLineCount: 2
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: "." + modelData.extension + " · " + (modelData.audioOnly ? qsTr("audio") : (modelData.width > 0 ? (modelData.width + "×" + (modelData.height > 0 ? modelData.height : "…")) : qsTr("project size")))
+                                        color: StudioTheme.textSecondary
+                                        font.family: StudioTheme.font
+                                        font.pixelSize: StudioTheme.fontTiny
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
+                        }
                     }
-                    Label { text: qsTr("Better"); font.pointSize: LingmoUI.Units.fontCaption; color: LingmoUI.Theme.secondaryTextColor }
                 }
-            }
 
-            LingmoUI.SegmentedControl {
-                id: range
-                model: [qsTr("Whole timeline"), qsTr("In to out")]
-                enabled: editor.player.markIn >= 0
-            }
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: StudioTheme.divider; Layout.topMargin: 4 }
 
-            Item { Layout.fillHeight: true }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: StudioTheme.pad
+                    Layout.rightMargin: StudioTheme.pad
+                    spacing: 8
 
-            LingmoUI.ActionButton {
-                Layout.fillWidth: true
-                text: qsTr("Add to render queue")
-                iconName: "document-export"
-                primary: true
-                enabled: editor.timeline.duration > 1 && page.output.length > 0
-                onClicked: editor.queueExport(page.presetId, "file://" + page.output, hw.checked && page.hwFor.length > 0,
-                                              (page.preset.codec === "h264" || page.preset.codec === "hevc" || page.preset.codec === "av1" || page.preset.codec === "vp9") ? Math.round(quality.value) : -1,
-                                              range.currentIndex === 1)
-            }
-            LingmoUI.ActionButton {
-                Layout.fillWidth: true
-                text: qsTr("Export subtitles (SRT)…")
-                onClicked: srtSave.open()
-            }
-            FileDialog {
-                id: srtSave
-                fileMode: FileDialog.SaveFile
-                defaultSuffix: "srt"
-                nameFilters: [qsTr("Subtitles (*.srt)")]
-                onAccepted: editor.exportSubtitles(selectedFile)
+                    Rectangle {
+                        Layout.fillWidth: true
+                        visible: page.preset && page.preset.vertical && !page.projectVertical
+                        Layout.preferredHeight: warnCol.implicitHeight + 16
+                        radius: StudioTheme.radius
+                        color: StudioTheme.alpha(StudioTheme.warning, 0.12)
+                        border.width: 1
+                        border.color: StudioTheme.alpha(StudioTheme.warning, 0.5)
+                        ColumnLayout {
+                            id: warnCol
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            spacing: 6
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: qsTr("This is a horizontal project") + ". " + qsTr("Reframe it for 9:16 first, or the video gets black bars.")
+                                color: StudioTheme.text
+                                font.family: StudioTheme.font
+                                font.pixelSize: StudioTheme.fontSmall
+                            }
+                            StudioButton { text: qsTr("Reframe to 9:16"); flat: false; size: 24; fontSize: StudioTheme.fontSmall; onClicked: editor.smartReframe("9:16") }
+                        }
+                    }
+
+                    SettingLabel { text: qsTr("File") }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        TextField {
+                            Layout.fillWidth: true
+                            text: page.output
+                            onEditingFinished: page.output = text
+                        }
+                        StudioButton { iconName: "folder"; tip: qsTr("Choose…"); flat: false; onClicked: outputDialog.open() }
+                    }
+
+                    SettingLabel { text: qsTr("Encoder"); Layout.topMargin: 4 }
+                    Switch {
+                        id: hw
+                        Layout.fillWidth: true
+                        text: page.hwFor.length > 0 ? qsTr("Use the graphics card (%1)").arg(page.hwFor) : qsTr("Use the graphics card")
+                        checked: true
+                        enabled: page.hwFor.length > 0
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: !editor.hwDetected ? qsTr("Checking which encoders the graphics card offers…")
+                              : page.hwFor.length > 0 ? qsTr("Faster export; software encoding is used if it fails to start.")
+                              : qsTr("No working hardware encoder for this format; the CPU encodes it.")
+                        color: StudioTheme.textSecondary
+                        font.family: StudioTheme.font
+                        font.pixelSize: StudioTheme.fontSmall
+                    }
+
+                    SettingLabel { text: qsTr("Quality"); visible: page.hasQuality; Layout.topMargin: 4 }
+                    RowLayout {
+                        visible: page.hasQuality
+                        Layout.fillWidth: true
+                        Text { text: qsTr("Smaller"); color: StudioTheme.textSecondary; font.family: StudioTheme.font; font.pixelSize: StudioTheme.fontSmall }
+                        Slider {
+                            id: quality
+                            Layout.fillWidth: true
+                            from: 34; to: 14
+                            stepSize: 1
+                            value: 21
+                        }
+                        Text { text: qsTr("Better"); color: StudioTheme.textSecondary; font.family: StudioTheme.font; font.pixelSize: StudioTheme.fontSmall }
+                    }
+
+                    SettingLabel { text: qsTr("Range"); Layout.topMargin: 4 }
+                    Row {
+                        spacing: 2
+                        StudioButton { text: qsTr("Whole timeline"); flat: false; checkable: true; checked: !range.inOut; onClicked: range.inOut = false }
+                        StudioButton {
+                            id: range
+                            property bool inOut: false
+                            text: qsTr("In to out")
+                            flat: false
+                            checkable: true
+                            checked: inOut
+                            enabled: editor.player.markIn >= 0
+                            onClicked: inOut = true
+                        }
+                    }
+
+                    StudioButton {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 10
+                        size: 36
+                        text: qsTr("Add to Render Queue")
+                        iconName: "export"
+                        primary: true
+                        enabled: editor.timeline.duration > 1 && page.output.length > 0
+                        onClicked: editor.queueExport(page.presetId, "file://" + page.output, hw.checked && page.hwFor.length > 0,
+                                                      (page.preset.codec === "h264" || page.preset.codec === "hevc" || page.preset.codec === "av1" || page.preset.codec === "vp9") ? Math.round(quality.value) : -1,
+                                                      range.inOut && editor.player.markIn >= 0)
+                    }
+                    StudioButton {
+                        Layout.fillWidth: true
+                        text: qsTr("Export subtitles (SRT)…")
+                        iconName: "captions"
+                        flat: false
+                        onClicked: srtSave.open()
+                    }
+                    Item { Layout.preferredHeight: 10 }
+                }
             }
         }
     }
 
+    // ---------------------------------------------------- viewer
+    ColumnLayout {
+        SplitView.fillWidth: true
+        SplitView.minimumWidth: 400
+        spacing: StudioTheme.gap
+        MonitorPanel {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            showSourceControls: false
+        }
+        StudioPanel {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 84
+            title: qsTr("Timeline")
+            subtitle: editor.formatDuration(editor.timeline.duration)
+            TimelineOverview {
+                anchors.fill: parent
+                anchors.margins: 6
+                showView: false
+                onScrubbed: function(frame) {
+                    if (editor.player.mode !== "timeline")
+                        editor.player.setMode("timeline")
+                    editor.player.seek(frame)
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------- render queue
     StudioPanel {
-        Layout.fillHeight: true
-        Layout.fillWidth: true
-        title: qsTr("Render queue")
+        title: qsTr("Render Queue")
+        subtitle: queue.count > 0 ? qsTr("%n job(s)", "", queue.count) : ""
+        SplitView.preferredWidth: 360
+        SplitView.minimumWidth: 280
         actions: [
-            LingmoUI.ActionButton { text: qsTr("Clear finished"); subtle: true; enabled: editor.renderQueue.count > 0; onClicked: editor.renderQueue.clearFinished() }
+            StudioButton { text: qsTr("Clear finished"); size: 24; fontSize: StudioTheme.fontSmall; enabled: editor.renderQueue.count > 0; onClicked: editor.renderQueue.clearFinished() }
         ]
 
         ListView {
             id: queue
             anchors.fill: parent
-            anchors.margins: LingmoUI.Units.smallSpacing
-            spacing: LingmoUI.Units.smallSpacing
+            anchors.margins: 6
+            spacing: 6
             clip: true
             model: editor.renderQueue
             ScrollBar.vertical: ScrollBar {}
-            delegate: LingmoUI.Card {
+            delegate: Rectangle {
                 id: job
                 required property int index
                 required property string name
@@ -221,75 +334,116 @@ RowLayout {
                 required property string encoder
                 required property string message
                 required property int eta
+                readonly property color tone: state === "done" ? StudioTheme.success : state === "failed" ? StudioTheme.danger : state === "cancelled" ? StudioTheme.textDisabled : StudioTheme.accent
                 width: queue.width
-                implicitHeight: jobCol.implicitHeight + LingmoUI.Units.largeSpacing * 2
+                implicitHeight: jobCol.implicitHeight + 20
+                radius: StudioTheme.radius
+                color: StudioTheme.raised
+                border.width: 1
+                border.color: StudioTheme.border
+                Rectangle { x: 0; y: 8; width: 3; height: parent.height - 16; radius: 1.5; color: job.tone }
                 ColumnLayout {
                     id: jobCol
                     anchors.fill: parent
-                    anchors.margins: LingmoUI.Units.largeSpacing
+                    anchors.margins: 10
+                    anchors.leftMargin: 14
                     spacing: 4
                     RowLayout {
                         Layout.fillWidth: true
-                        Label {
+                        Text {
                             Layout.fillWidth: true
                             text: job.name
-                            font.pointSize: LingmoUI.Units.fontBody
-                            font.bold: true
-                            color: LingmoUI.Theme.textColor
+                            color: StudioTheme.text
+                            font.family: StudioTheme.font
+                            font.pixelSize: StudioTheme.fontBody
+                            font.weight: Font.DemiBold
                             elide: Text.ElideMiddle
                         }
-                        LingmoUI.Badge {
+                        Text {
                             text: ({ queued: qsTr("queued"), running: job.progress + "%", done: qsTr("done"), failed: qsTr("failed"), cancelled: qsTr("cancelled") })[job.state]
-                            tone: job.state === "done" ? LingmoUI.Theme.greenColor : job.state === "failed" ? LingmoUI.Theme.redColor : LingmoUI.Theme.highlightColor
+                            color: job.tone
+                            font.family: StudioTheme.font
+                            font.pixelSize: StudioTheme.fontSmall
+                            font.weight: Font.DemiBold
                         }
                     }
-                    Label {
+                    Text {
                         Layout.fillWidth: true
                         text: job.preset + (job.encoder ? " · " + job.encoder : "") + (job.state === "running" && job.eta >= 0 ? " · " + qsTr("%1 s left").arg(job.eta) : "")
-                        color: LingmoUI.Theme.secondaryTextColor
-                        font.pointSize: LingmoUI.Units.fontCaption
+                        color: StudioTheme.textSecondary
+                        font.family: StudioTheme.font
+                        font.pixelSize: StudioTheme.fontSmall
                         elide: Text.ElideRight
                     }
-                    ProgressBar {
+                    Rectangle {
                         Layout.fillWidth: true
+                        Layout.preferredHeight: 4
                         visible: job.state === "running" || job.state === "queued"
-                        from: 0; to: 100
-                        value: job.progress
+                        radius: 2
+                        color: StudioTheme.well
+                        Rectangle {
+                            width: parent.width * job.progress / 100
+                            height: parent.height
+                            radius: 2
+                            color: StudioTheme.accent
+                            Behavior on width { NumberAnimation { duration: StudioTheme.normal } }
+                        }
                     }
-                    Label {
+                    Text {
                         Layout.fillWidth: true
                         visible: job.message.length > 0
                         text: job.message
                         wrapMode: Text.WordWrap
-                        color: LingmoUI.Theme.errorColor
-                        font.pointSize: LingmoUI.Units.fontCaption
+                        color: StudioTheme.danger
+                        font.family: StudioTheme.font
+                        font.pixelSize: StudioTheme.fontSmall
                     }
                     RowLayout {
+                        Layout.fillWidth: true
                         Item { Layout.fillWidth: true }
-                        LingmoUI.ActionButton {
+                        StudioButton {
                             visible: job.state === "running" || job.state === "queued"
                             text: qsTr("Cancel")
-                            destructive: true
-                            subtle: true
+                            size: 24
+                            fontSize: StudioTheme.fontSmall
                             onClicked: editor.renderQueue.cancel(job.index)
                         }
-                        LingmoUI.ActionButton {
+                        StudioButton {
                             visible: job.state === "done"
                             text: qsTr("Show in folder")
+                            iconName: "folder"
+                            size: 24
+                            fontSize: StudioTheme.fontSmall
                             onClicked: editor.renderQueue.openFolder(job.index)
                         }
                     }
                 }
             }
         }
-        LingmoUI.EmptyState {
+        ColumnLayout {
             anchors.centerIn: parent
-            width: parent.width - LingmoUI.Units.largeSpacing * 2
+            width: parent.width - 40
             visible: queue.count === 0
-            iconName: "document-export"
-            iconSize: LingmoUI.Units.iconSizes.large
-            title: qsTr("Nothing rendering")
-            text: qsTr("Pick a format and add the project to the queue. You can keep editing while it renders.")
+            spacing: 8
+            StudioIcon { Layout.alignment: Qt.AlignHCenter; name: "page-deliver"; size: 32; color: StudioTheme.textDisabled }
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: qsTr("Nothing rendering")
+                color: StudioTheme.text
+                font.family: StudioTheme.font
+                font.pixelSize: StudioTheme.fontLarge
+                font.weight: Font.DemiBold
+            }
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                text: qsTr("Pick a format and add the project to the queue. You can keep editing while it renders.")
+                color: StudioTheme.textSecondary
+                font.family: StudioTheme.font
+                font.pixelSize: StudioTheme.fontBody
+            }
         }
     }
 }

@@ -44,37 +44,36 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        Label {
-            text: qsTr("Keyframes")
-            font.pointSize: LingmoUI.Units.fontBody
-            font.bold: true
-            color: LingmoUI.Theme.textColor
-        }
         ComboBox {
-            Layout.preferredWidth: 180
+            Layout.fillWidth: true
+            Layout.maximumWidth: 180
             model: kfe.animEffects.map(function(e) { return e.name })
             currentIndex: kfe.effectChoice
             onActivated: function(i) { kfe.effectChoice = i; kfe.paramChoice = 0 }
             enabled: kfe.animEffects.length > 0
         }
         ComboBox {
-            Layout.preferredWidth: 160
+            Layout.fillWidth: true
+            Layout.maximumWidth: 160
             model: kfe.params.map(function(p) { return p.name })
             currentIndex: kfe.paramChoice
             onActivated: function(i) { kfe.paramChoice = i }
             enabled: kfe.params.length > 0
         }
-        LingmoUI.IconButton {
-            iconName: "keyframe-add"
-            tipText: qsTr("Keyframe at playhead")
+        StudioButton {
+            iconName: "keyframe"
+            tip: qsTr("Keyframe at playhead")
             enabled: kfe.fx !== null
             onClicked: editor.toggleKeyframe(kfe.sel.id, kfe.fx.index, editor.player.timelinePosition)
         }
-        Item { Layout.fillWidth: true }
-        Label {
+        Text {
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignRight
             text: kfe.fx ? qsTr("%n keyframe(s)", "", kfe.fx.keyframes.length) : qsTr("Add Transform, Crop, Text or Volume to a clip to animate it")
-            color: LingmoUI.Theme.secondaryTextColor
-            font.pointSize: LingmoUI.Units.fontCaption
+            color: StudioTheme.textSecondary
+            font.family: StudioTheme.font
+            font.pixelSize: StudioTheme.fontSmall
+            elide: Text.ElideRight
         }
     }
 

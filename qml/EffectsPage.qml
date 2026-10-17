@@ -10,59 +10,85 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import LingmoUI.CompatibleModule 3.0 as LingmoUI
 
-// Effects page: effect/transition/title libraries, the viewer, the effect
-// stack of the selected clip and a keyframe curve editor.
+// Effects page (Fusion-like): library, viewer and inspector on top; the
+// selected clip's effect chain as nodes and the keyframe curves below; the
+// program's clips along the bottom to pick what to work on.
 SplitView {
+    id: page
     orientation: Qt.Vertical
+    handle: PanelHandle { }
+
+    property int focusNode: -1
+    readonly property string selectedId: editor.selectedClip && editor.selectedClip.id !== undefined ? editor.selectedClip.id : ""
+    onSelectedIdChanged: focusNode = -1
 
     SplitView {
         SplitView.fillHeight: true
-        SplitView.minimumHeight: 260
+        SplitView.minimumHeight: 240
         orientation: Qt.Horizontal
+        handle: PanelHandle { }
 
         StudioPanel {
-            title: qsTr("Library")
-            SplitView.preferredWidth: 300
+            title: qsTr("Effects Library")
+            icon: "fx-library"
+            SplitView.preferredWidth: 280
             SplitView.minimumWidth: 220
             LibraryPanel {
                 anchors.fill: parent
-                anchors.margins: LingmoUI.Units.smallSpacing
+                anchors.margins: 6
             }
         }
         MonitorPanel {
             SplitView.fillWidth: true
+            SplitView.minimumWidth: 400
             showSourceControls: false
         }
         StudioPanel {
-            title: qsTr("Effect stack")
+            title: qsTr("Inspector")
+            icon: "inspector"
             SplitView.preferredWidth: 360
             SplitView.minimumWidth: 260
             Inspector {
                 anchors.fill: parent
-                anchors.topMargin: LingmoUI.Units.smallSpacing
                 categories: ["transform", "stylize", "key", "text"]
+                focusEffect: page.focusNode
             }
         }
     }
 
     SplitView {
-        SplitView.preferredHeight: 300
-        SplitView.minimumHeight: 180
+        SplitView.preferredHeight: 250
+        SplitView.minimumHeight: 170
         orientation: Qt.Horizontal
+        handle: PanelHandle { }
 
         StudioPanel {
-            SplitView.preferredWidth: 520
-            KeyframeEditor {
+            title: qsTr("Nodes")
+            icon: "page-effects"
+            SplitView.fillWidth: true
+            NodeGraph {
                 anchors.fill: parent
-                anchors.margins: LingmoUI.Units.smallSpacing
+                anchors.margins: 6
+                focusIndex: page.focusNode
+                onFocusRequested: function(index) { page.focusNode = index }
             }
         }
-        TimelinePanel {
-            SplitView.fillWidth: true
-            showToolbar: false
-            compact: true
+        StudioPanel {
+            title: qsTr("Keyframes")
+            icon: "keyframe"
+            SplitView.preferredWidth: 520
+            SplitView.minimumWidth: 320
+            KeyframeEditor {
+                anchors.fill: parent
+                anchors.margins: 8
+            }
         }
+    }
+
+    ClipStrip {
+        SplitView.preferredHeight: 104
+        SplitView.minimumHeight: 104
+        SplitView.maximumHeight: 104
     }
 }

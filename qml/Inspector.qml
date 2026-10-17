@@ -18,7 +18,10 @@ Item {
     id: inspector
 
     property var categories: []
+    property var types: []          // only these effect types (Color page tabs)
     property bool showClipSection: true
+    property bool showEffectsHeader: true
+    property int focusEffect: -1    // Effects page: the node picked in the graph
     readonly property var sel: editor.selectedClip
     readonly property bool hasClip: sel && sel.id !== undefined
     readonly property int playhead: editor.player.timelinePosition
@@ -57,159 +60,191 @@ Item {
         onObjectRemoved: function(index, object) { addMenu.removeMenu(object) }
     }
 
-    LingmoUI.EmptyState {
+    // nothing selected
+    ColumnLayout {
         anchors.centerIn: parent
-        width: parent.width - LingmoUI.Units.largeSpacing * 2
+        width: parent.width - 32
         visible: !inspector.hasClip
-        iconName: "document-properties"
-        iconSize: LingmoUI.Units.iconSizes.large
-        title: editor.selection.length > 1 ? qsTr("%n clips selected", "", editor.selection.length) : qsTr("Nothing selected")
-        text: qsTr("Select a clip on the timeline to see its settings and effects.")
+        spacing: 8
+        StudioIcon { Layout.alignment: Qt.AlignHCenter; name: "inspector"; size: 30; color: StudioTheme.textDisabled }
+        Text {
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            text: editor.selection.length > 1 ? qsTr("%n clips selected", "", editor.selection.length) : qsTr("Nothing selected")
+            color: StudioTheme.text
+            font.family: StudioTheme.font
+            font.pixelSize: StudioTheme.fontLarge
+            font.weight: Font.DemiBold
+        }
+        Text {
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            text: qsTr("Select a clip on the timeline to see its settings and effects.")
+            color: StudioTheme.textSecondary
+            font.family: StudioTheme.font
+            font.pixelSize: StudioTheme.fontBody
+        }
+    }
+
+    component FieldLabel: Text {
+        color: StudioTheme.textSecondary
+        font.family: StudioTheme.font
+        font.pixelSize: StudioTheme.fontSmall
     }
 
     ScrollView {
         id: scroll
         anchors.fill: parent
+        anchors.margins: 6
         visible: inspector.hasClip
         contentWidth: availableWidth
         clip: true
 
         ColumnLayout {
-            width: scroll.availableWidth
-            spacing: LingmoUI.Units.smallSpacing
+            // fixed reserve for the scroll bar: wrapped text must not make
+            // the bar appear and disappear
+            width: scroll.width - 10
+            spacing: 6
 
             // ---------------- caption (word-timed)
-            CaptionInspector {
+            InspectorSection {
                 visible: inspector.showClipSection && inspector.hasClip && inspector.sel.kind === "caption"
                 Layout.fillWidth: true
-                Layout.leftMargin: LingmoUI.Units.smallSpacing
-                Layout.rightMargin: LingmoUI.Units.smallSpacing
-                info: visible ? inspector.sel : ({})
-                onStyleRequested: root.openCaptions("")
+                title: qsTr("Caption")
+                accent: StudioTheme.trackCaption
+                CaptionInspector {
+                    Layout.fillWidth: true
+                    info: inspector.hasClip && inspector.sel.kind === "caption" ? inspector.sel : ({})
+                    onStyleRequested: root.openCaptions("")
+                }
             }
 
             // ---------------- clip
-            LingmoUI.Card {
+            InspectorSection {
                 visible: inspector.showClipSection && inspector.sel.kind !== "caption"
                 Layout.fillWidth: true
-                Layout.leftMargin: LingmoUI.Units.smallSpacing
-                Layout.rightMargin: LingmoUI.Units.smallSpacing
-                implicitHeight: clipCol.implicitHeight + LingmoUI.Units.largeSpacing * 2
-                ColumnLayout {
-                    id: clipCol
-                    anchors.fill: parent
-                    anchors.margins: LingmoUI.Units.largeSpacing
-                    spacing: LingmoUI.Units.smallSpacing
+                title: inspector.sel.kind === "title" ? qsTr("Title") : inspector.sel.kind === "color" ? qsTr("Color") : qsTr("Clip")
+                accent: inspector.sel.trackKind === "audio" ? StudioTheme.trackAudio : StudioTheme.trackVideo
 
-                    TextField {
-                        Layout.fillWidth: true
-                        text: inspector.hasClip ? (inspector.sel.name || "") : ""
-                        placeholderText: inspector.sel.kind === "title" ? qsTr("Title") : inspector.sel.kind === "color" ? qsTr("Color") : qsTr("Clip")
-                        font.pointSize: LingmoUI.Units.fontSubheading
-                        font.bold: true
-                        onEditingFinished: editor.setClipProperty(inspector.sel.id, "name", text)
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: inspector.hasClip ? qsTr("Starts %1 · lasts %2 · source %3–%4")
-                                                  .arg(editor.timecode(inspector.sel.position)).arg(editor.timecode(inspector.sel.duration))
-                                                  .arg(editor.timecode(inspector.sel.in)).arg(editor.timecode(inspector.sel.out)) : ""
-                        color: LingmoUI.Theme.secondaryTextColor
-                        font.pointSize: LingmoUI.Units.fontCaption
-                        wrapMode: Text.WordWrap
-                    }
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: 2
-                        columnSpacing: LingmoUI.Units.smallSpacing
-                        rowSpacing: 2
+                TextField {
+                    Layout.fillWidth: true
+                    text: inspector.hasClip ? (inspector.sel.name || "") : ""
+                    placeholderText: inspector.sel.kind === "title" ? qsTr("Title") : inspector.sel.kind === "color" ? qsTr("Color") : qsTr("Clip")
+                    font.pixelSize: StudioTheme.fontLarge
+                    font.bold: true
+                    onEditingFinished: editor.setClipProperty(inspector.sel.id, "name", text)
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: inspector.hasClip ? qsTr("Starts %1 · lasts %2 · source %3–%4")
+                                              .arg(editor.timecode(inspector.sel.position)).arg(editor.timecode(inspector.sel.duration))
+                                              .arg(editor.timecode(inspector.sel.in)).arg(editor.timecode(inspector.sel.out)) : ""
+                    color: StudioTheme.textSecondary
+                    font.family: StudioTheme.font
+                    font.pixelSize: StudioTheme.fontSmall
+                    font.features: { "tnum": 1 }
+                    wrapMode: Text.WordWrap
+                }
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 2
+                    columnSpacing: 8
+                    rowSpacing: 2
 
-                        Label { text: qsTr("Speed"); color: LingmoUI.Theme.secondaryTextColor; font.pointSize: LingmoUI.Units.fontCaption; visible: inspector.sel.kind === "media" }
+                    FieldLabel { text: qsTr("Speed"); visible: inspector.sel.kind === "media" }
+                    ComboBox {
+                        Layout.fillWidth: true
+                        visible: inspector.sel.kind === "media"
+                        readonly property var speeds: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 4, 8, -1]
+                        model: speeds.map(function(v) { return v < 0 ? qsTr("Reverse") : v + "×" })
+                        currentIndex: speeds.indexOf(inspector.sel.speed)
+                        displayText: inspector.sel.speedRamp && inspector.sel.speedRamp.length ? qsTr("Ramp") : (inspector.sel.speed < 0 ? qsTr("Reverse") : inspector.sel.speed + "×")
+                        onActivated: function(i) { editor.setClipProperty(inspector.sel.id, "speed", speeds[i]) }
+                    }
+                    FieldLabel { text: qsTr("Fade in") }
+                    Slider {
+                        Layout.fillWidth: true
+                        from: 0
+                        to: Math.max(1, Math.floor((inspector.sel.duration || 2) / 2))
+                        stepSize: 1
+                        value: inspector.sel.fadeIn || 0
+                        onMoved: editor.setClipProperty(inspector.sel.id, "fadeIn", value)
+                    }
+                    FieldLabel { text: qsTr("Fade out") }
+                    Slider {
+                        Layout.fillWidth: true
+                        from: 0
+                        to: Math.max(1, Math.floor((inspector.sel.duration || 2) / 2))
+                        stepSize: 1
+                        value: inspector.sel.fadeOut || 0
+                        onMoved: editor.setClipProperty(inspector.sel.id, "fadeOut", value)
+                    }
+                    FieldLabel { text: qsTr("Transition"); visible: inspector.sel.transitionIn > 0 }
+                    RowLayout {
+                        visible: inspector.sel.transitionIn > 0
+                        Layout.fillWidth: true
                         ComboBox {
                             Layout.fillWidth: true
-                            visible: inspector.sel.kind === "media"
-                            readonly property var speeds: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 4, 8, -1]
-                            model: speeds.map(function(v) { return v < 0 ? qsTr("Reverse") : v + "×" })
-                            currentIndex: speeds.indexOf(inspector.sel.speed)
-                            displayText: inspector.sel.speedRamp && inspector.sel.speedRamp.length ? qsTr("Ramp") : (inspector.sel.speed < 0 ? qsTr("Reverse") : inspector.sel.speed + "×")
-                            onActivated: function(i) { editor.setClipProperty(inspector.sel.id, "speed", speeds[i]) }
+                            model: editor.transitionTypes
+                            currentIndex: Math.max(0, editor.transitionTypes.indexOf(inspector.sel.transition))
+                            onActivated: editor.setTransition(inspector.sel.id, inspector.sel.transitionIn, currentText)
                         }
-                        Label { text: qsTr("Fade in"); color: LingmoUI.Theme.secondaryTextColor; font.pointSize: LingmoUI.Units.fontCaption }
-                        Slider {
-                            Layout.fillWidth: true
-                            from: 0
-                            to: Math.max(1, Math.floor((inspector.sel.duration || 2) / 2))
-                            stepSize: 1
-                            value: inspector.sel.fadeIn || 0
-                            onMoved: editor.setClipProperty(inspector.sel.id, "fadeIn", value)
-                        }
-                        Label { text: qsTr("Fade out"); color: LingmoUI.Theme.secondaryTextColor; font.pointSize: LingmoUI.Units.fontCaption }
-                        Slider {
-                            Layout.fillWidth: true
-                            from: 0
-                            to: Math.max(1, Math.floor((inspector.sel.duration || 2) / 2))
-                            stepSize: 1
-                            value: inspector.sel.fadeOut || 0
-                            onMoved: editor.setClipProperty(inspector.sel.id, "fadeOut", value)
-                        }
-                        Label { text: qsTr("Transition"); color: LingmoUI.Theme.secondaryTextColor; font.pointSize: LingmoUI.Units.fontCaption; visible: inspector.sel.transitionIn > 0 }
-                        RowLayout {
-                            visible: inspector.sel.transitionIn > 0
-                            Layout.fillWidth: true
-                            ComboBox {
-                                Layout.fillWidth: true
-                                model: editor.transitionTypes
-                                currentIndex: Math.max(0, editor.transitionTypes.indexOf(inspector.sel.transition))
-                                onActivated: editor.setTransition(inspector.sel.id, inspector.sel.transitionIn, currentText)
-                            }
-                            SpinBox {
-                                from: 1
-                                to: 600
-                                value: inspector.sel.transitionIn || 1
-                                editable: true
-                                onValueModified: editor.setTransition(inspector.sel.id, value, "")
-                            }
-                        }
-                        Label { text: qsTr("Color"); color: LingmoUI.Theme.secondaryTextColor; font.pointSize: LingmoUI.Units.fontCaption; visible: inspector.sel.kind === "color" }
-                        ParamEditor {
-                            visible: inspector.sel.kind === "color"
-                            Layout.fillWidth: true
-                            def: ({ type: "color", name: "" })
-                            value: inspector.sel.color || "#000000"
-                            onEdited: function(v) { editor.setClipProperty(inspector.sel.id, "color", v) }
+                        SpinBox {
+                            from: 1
+                            to: 600
+                            value: inspector.sel.transitionIn || 1
+                            editable: true
+                            onValueModified: editor.setTransition(inspector.sel.id, value, "")
                         }
                     }
-                    Switch {
-                        visible: inspector.sel.kind === "media" && inspector.sel.trackKind === "video" && inspector.sel.mediaKind === "video"
-                        text: qsTr("Play this clip's sound")
-                        checked: !inspector.sel.audioMuted
-                        onToggled: editor.setClipProperty(inspector.sel.id, "audioMuted", !checked)
+                    FieldLabel { text: qsTr("Color"); visible: inspector.sel.kind === "color" }
+                    ParamEditor {
+                        visible: inspector.sel.kind === "color"
+                        Layout.fillWidth: true
+                        def: ({ type: "color", name: "" })
+                        value: inspector.sel.color || "#000000"
+                        onEdited: function(v) { editor.setClipProperty(inspector.sel.id, "color", v) }
                     }
+                }
+                Switch {
+                    visible: inspector.sel.kind === "media" && inspector.sel.trackKind === "video" && inspector.sel.mediaKind === "video"
+                    text: qsTr("Play this clip's sound")
+                    checked: !inspector.sel.audioMuted
+                    onToggled: editor.setClipProperty(inspector.sel.id, "audioMuted", !checked)
                 }
             }
 
             // ---------------- effects
             RowLayout {
+                visible: inspector.showEffectsHeader
                 Layout.fillWidth: true
-                Layout.leftMargin: LingmoUI.Units.largeSpacing
-                Layout.rightMargin: LingmoUI.Units.smallSpacing
-                Label {
+                Layout.topMargin: 4
+                Layout.leftMargin: 4
+                Text {
                     text: qsTr("Effects")
-                    font.pointSize: LingmoUI.Units.fontBody
-                    font.bold: true
-                    color: LingmoUI.Theme.textColor
+                    color: StudioTheme.textSecondary
+                    font.family: StudioTheme.font
+                    font.pixelSize: StudioTheme.fontSmall
+                    font.weight: Font.DemiBold
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 0.6
                     Layout.fillWidth: true
                 }
-                LingmoUI.ActionButton {
+                StudioButton {
                     text: qsTr("Add")
-                    iconName: "list-add"
+                    iconName: "plus"
+                    iconSize: 13
+                    size: 24
+                    fontSize: StudioTheme.fontSmall
+                    flat: false
                     onClicked: addMenu.popup()
                 }
             }
 
             Repeater {
                 model: inspector.hasClip ? inspector.sel.effects : []
-                delegate: LingmoUI.Card {
+                delegate: InspectorSection {
                     id: fxCard
                     required property var modelData
                     readonly property var fx: modelData
@@ -217,78 +252,61 @@ Item {
                     readonly property var values: fx.animated ? editor.effectValuesAt(inspector.sel.id, fx.index, inspector.playhead) : fx.params
                     readonly property bool keyHere: fx.animated && editor.hasKeyframeAt(inspector.sel.id, fx.index, inspector.playhead)
                     readonly property bool canAnimate: def ? def.params.some(function(p) { return p.animatable }) : false
-                    property bool expanded: true
-                    visible: inspector.shown(fx.category)
+                    visible: inspector.shown(fx.category) && (inspector.types.length === 0 || inspector.types.indexOf(fx.type) >= 0)
                     Layout.fillWidth: true
-                    Layout.leftMargin: LingmoUI.Units.smallSpacing
-                    Layout.rightMargin: LingmoUI.Units.smallSpacing
-                    implicitHeight: visible ? fxCol.implicitHeight + LingmoUI.Units.largeSpacing * 1.5 : 0
-                    opacity: fx.enabled ? 1 : 0.6
+                    title: fx.name
+                    dim: !fx.enabled
+                    expanded: inspector.focusEffect < 0 || inspector.focusEffect === fx.index
+                    accent: ({ transform: StudioTheme.trackVideo, color: "#D8606A", stylize: StudioTheme.titleClipEdge, key: StudioTheme.trackAudio,
+                               text: StudioTheme.trackCaption, audio: StudioTheme.trackAudio })[fx.category] || StudioTheme.textSecondary
 
-                    ColumnLayout {
-                        id: fxCol
-                        anchors.fill: parent
-                        anchors.margins: LingmoUI.Units.largeSpacing * 0.75
-                        spacing: LingmoUI.Units.smallSpacing
+                    tools: [
+                        StudioButton {
+                            visible: fxCard.canAnimate
+                            iconName: fxCard.keyHere ? "keyframe-on" : "keyframe"
+                            size: 22
+                            iconSize: 12
+                            tip: fxCard.keyHere ? qsTr("Remove keyframe at playhead") : qsTr("Add keyframe at playhead")
+                            checkable: true
+                            checked: fxCard.keyHere
+                            onClicked: editor.toggleKeyframe(inspector.sel.id, fxCard.fx.index, inspector.playhead)
+                        },
+                        StudioButton { iconName: "chevron-left"; rotation: 90; size: 22; iconSize: 12; tip: qsTr("Move up"); enabled: fxCard.fx.index > 0; onClicked: editor.moveEffect(inspector.sel.id, fxCard.fx.index, fxCard.fx.index - 1) },
+                        StudioButton { iconName: "chevron-right"; rotation: 90; size: 22; iconSize: 12; tip: qsTr("Move down"); enabled: fxCard.fx.index < inspector.sel.effects.length - 1; onClicked: editor.moveEffect(inspector.sel.id, fxCard.fx.index, fxCard.fx.index + 1) },
+                        StudioButton {
+                            iconName: "eye"
+                            size: 22
+                            iconSize: 13
+                            tip: fxCard.fx.enabled ? qsTr("Bypass") : qsTr("Enable")
+                            checkable: true
+                            checked: fxCard.fx.enabled
+                            onClicked: editor.setEffectEnabled(inspector.sel.id, fxCard.fx.index, !fxCard.fx.enabled)
+                        },
+                        StudioButton { iconName: "trash"; size: 22; iconSize: 13; tip: qsTr("Remove"); onClicked: editor.removeEffect(inspector.sel.id, fxCard.fx.index) }
+                    ]
 
-                        RowLayout {
+                    Repeater {
+                        model: fxCard.def ? fxCard.def.params : []
+                        ParamEditor {
                             Layout.fillWidth: true
-                            spacing: 2
-                            LingmoUI.IconButton {
-                                iconName: fxCard.expanded ? "go-down" : "go-next"
-                                size: 22
-                                iconSize: 12
-                                onClicked: fxCard.expanded = !fxCard.expanded
-                            }
-                            Label {
-                                text: fxCard.fx.name
-                                font.pointSize: LingmoUI.Units.fontBody
-                                font.bold: true
-                                color: LingmoUI.Theme.textColor
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                            }
-                            LingmoUI.IconButton {
-                                visible: fxCard.canAnimate
-                                iconName: "keyframe-add"
-                                tipText: fxCard.keyHere ? qsTr("Remove keyframe at playhead") : qsTr("Add keyframe at playhead")
-                                checkable: true
-                                checked: fxCard.keyHere
-                                size: 24
-                                onClicked: editor.toggleKeyframe(inspector.sel.id, fxCard.fx.index, inspector.playhead)
-                            }
-                            LingmoUI.IconButton { iconName: "go-up"; tipText: qsTr("Move up"); size: 24; enabled: fxCard.fx.index > 0; onClicked: editor.moveEffect(inspector.sel.id, fxCard.fx.index, fxCard.fx.index - 1) }
-                            LingmoUI.IconButton { iconName: "go-down"; tipText: qsTr("Move down"); size: 24; enabled: fxCard.fx.index < inspector.sel.effects.length - 1; onClicked: editor.moveEffect(inspector.sel.id, fxCard.fx.index, fxCard.fx.index + 1) }
-                            Switch {
-                                checked: fxCard.fx.enabled
-                                onToggled: editor.setEffectEnabled(inspector.sel.id, fxCard.fx.index, checked)
-                                ToolTip.visible: hovered
-                                ToolTip.text: qsTr("Bypass")
-                            }
-                            LingmoUI.IconButton { iconName: "edit-delete"; tipText: qsTr("Remove"); size: 24; onClicked: editor.removeEffect(inspector.sel.id, fxCard.fx.index) }
+                            def: modelData
+                            value: fxCard.values[modelData.id]
+                            animated: fxCard.fx.animated
+                            onEdited: function(v) { editor.setEffectParam(inspector.sel.id, fxCard.fx.index, modelData.id, v) }
                         }
-                        Repeater {
-                            model: fxCard.expanded && fxCard.def ? fxCard.def.params : []
-                            ParamEditor {
-                                Layout.fillWidth: true
-                                def: modelData
-                                value: fxCard.values[modelData.id]
-                                animated: fxCard.fx.animated
-                                onEdited: function(v) { editor.setEffectParam(inspector.sel.id, fxCard.fx.index, modelData.id, v) }
-                            }
-                        }
-                        Label {
-                            visible: fxCard.fx.type === "stabilize"
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            text: qsTr("Stabilizing needs an analysis file (.trf) made with vid.stab; analysis inside Studio is not available yet.")
-                            color: LingmoUI.Theme.secondaryTextColor
-                            font.pointSize: LingmoUI.Units.fontCaption
-                        }
+                    }
+                    Text {
+                        visible: fxCard.fx.type === "stabilize"
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Stabilizing needs an analysis file (.trf) made with vid.stab; analysis inside Studio is not available yet.")
+                        color: StudioTheme.textSecondary
+                        font.family: StudioTheme.font
+                        font.pixelSize: StudioTheme.fontSmall
                     }
                 }
             }
-            Item { Layout.preferredHeight: LingmoUI.Units.largeSpacing }
+            Item { Layout.preferredHeight: 10 }
         }
     }
 }

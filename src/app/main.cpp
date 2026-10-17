@@ -34,8 +34,8 @@
 #include <clocale>
 
 // The Lingmo platform theme doesn't always hand the icon theme over at startup:
-// use the one set in Lingmo Settings. Studio's interface is dark by default,
-// so prefer the dark variant of the theme then (light icons on dark panels).
+// use the one set in Lingmo Settings. Studio's workspace is always charcoal,
+// so prefer the dark variant of the theme (light icons on dark panels).
 static void applyIconTheme(bool darkUi)
 {
     auto exists = [](const QString &name) {
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
     parser.setApplicationDescription(QStringLiteral("Lingmo Studio, video editor (MLT)"));
     parser.addHelpOption();
     parser.addVersionOption();
-    QCommandLineOption page(QStringLiteral("page"), QStringLiteral("Open on a page: edit, color, effects, audio, deliver, shorts, captions"), QStringLiteral("page"));
+    QCommandLineOption page(QStringLiteral("page"), QStringLiteral("Open on a page: media, cut, edit, effects, color, audio, deliver, shorts, captions"), QStringLiteral("page"));
     QCommandLineOption quitAfter(QStringLiteral("quit-after"), QStringLiteral("Quit after N seconds (tests)"), QStringLiteral("seconds"));
     QCommandLineOption play(QStringLiteral("play"), QStringLiteral("Start playing after loading"));
     QCommandLineOption seek(QStringLiteral("seek"), QStringLiteral("Move the playhead to a frame after loading"), QStringLiteral("frame"));
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
     parser.addPositionalArgument(QStringLiteral("files"), QStringLiteral("Project (.mlt) or media files to open"));
     parser.process(app);
 
-    applyIconTheme(QSettings().value(QStringLiteral("darkUi"), true).toBool());
+    applyIconTheme(true);
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("lingmo-studio"), QIcon::fromTheme(QStringLiteral("applications-multimedia"))));
 
     qmlRegisterType<VideoItem>("Lingmo.Studio", 1, 0, "VideoView");

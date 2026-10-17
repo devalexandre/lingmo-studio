@@ -24,34 +24,6 @@
         <translation>o ffmpeg não tem entrada PulseAudio aqui</translation>
     </message>
     <message>
-        <source>Master</source>
-        <translation>Mestre</translation>
-    </message>
-    <message>
-        <source>Monitor</source>
-        <translation>Monitor</translation>
-    </message>
-    <message>
-        <source>Center</source>
-        <translation>Centro</translation>
-    </message>
-    <message>
-        <source>L %1</source>
-        <translation>E %1</translation>
-    </message>
-    <message>
-        <source>R %1</source>
-        <translation>D %1</translation>
-    </message>
-    <message>
-        <source>Mute</source>
-        <translation>Silenciar</translation>
-    </message>
-    <message>
-        <source>Solo</source>
-        <translation>Solo</translation>
-    </message>
-    <message>
         <source>Clip audio</source>
         <translation>Áudio do clipe</translation>
     </message>
@@ -388,6 +360,13 @@
     </message>
 </context>
 <context>
+    <name>ClipStrip</name>
+    <message>
+        <source>The timeline has no picture clips yet</source>
+        <translation>A linha do tempo ainda não tem clipes de imagem</translation>
+    </message>
+</context>
+<context>
     <name>ColorPage</name>
     <message>
         <source>Scopes</source>
@@ -398,24 +377,40 @@
         <translation>Forma de onda</translation>
     </message>
     <message>
-        <source>RGB parade</source>
-        <translation>Parada RGB</translation>
-    </message>
-    <message>
-        <source>Vectorscope</source>
-        <translation>Vetorscópio</translation>
-    </message>
-    <message>
         <source>Histogram</source>
         <translation>Histograma</translation>
     </message>
     <message>
-        <source>Grade: %1</source>
-        <translation>Correção: %1</translation>
+        <source>Parade</source>
+        <translation>Parade</translation>
+    </message>
+    <message>
+        <source>Vector</source>
+        <translation>Vetor</translation>
     </message>
     <message>
         <source>Select a clip to grade</source>
         <translation>Selecione um clipe para corrigir</translation>
+    </message>
+    <message>
+        <source>Clip</source>
+        <translation>Clipe</translation>
+    </message>
+    <message>
+        <source>Color Wheels</source>
+        <translation>Rodas de cor</translation>
+    </message>
+    <message>
+        <source>Curves</source>
+        <translation>Curvas</translation>
+    </message>
+    <message>
+        <source>Qualifier</source>
+        <translation>Qualificador</translation>
+    </message>
+    <message>
+        <source>Primaries &amp; LUT</source>
+        <translation>Primárias e LUT</translation>
     </message>
     <message>
         <source>Before / after</source>
@@ -430,8 +425,8 @@
         <translation>Colar correção</translation>
     </message>
     <message>
-        <source>Reset</source>
-        <translation>Redefinir</translation>
+        <source>Reset grade</source>
+        <translation>Redefinir correção</translation>
     </message>
     <message>
         <source>Lift</source>
@@ -446,12 +441,36 @@
         <translation>Ganho</translation>
     </message>
     <message>
-        <source>Primaries</source>
-        <translation>Primárias</translation>
+        <source>Offset</source>
+        <translation>Deslocamento</translation>
     </message>
     <message>
-        <source>HSL qualifier</source>
-        <translation>Qualificador HSL</translation>
+        <source>Luma</source>
+        <translation>Luma</translation>
+    </message>
+    <message>
+        <source>Red</source>
+        <translation>Vermelho</translation>
+    </message>
+    <message>
+        <source>Green</source>
+        <translation>Verde</translation>
+    </message>
+    <message>
+        <source>Blue</source>
+        <translation>Azul</translation>
+    </message>
+    <message>
+        <source>Pick a range of hues and change only those: shift the hue, saturate or lighten them.</source>
+        <translation>Escolha uma faixa de matizes e altere só ela: desloque o matiz, sature ou clareie.</translation>
+    </message>
+    <message>
+        <source>Add HSL qualifier</source>
+        <translation>Adicionar qualificador HSL</translation>
+    </message>
+    <message>
+        <source>Primaries</source>
+        <translation>Primárias</translation>
     </message>
     <message>
         <source>LUT</source>
@@ -461,8 +480,71 @@
 <context>
     <name>ColorWheel</name>
     <message>
+        <source>Reset %1</source>
+        <translation>Redefinir %1</translation>
+    </message>
+    <message>
         <source>Master %1</source>
         <translation>Mestre %1</translation>
+    </message>
+</context>
+<context>
+    <name>CutPage</name>
+    <message>
+        <source>Append</source>
+        <translation>Anexar</translation>
+    </message>
+    <message>
+        <source>Add the source clip (or its in/out range) to the end of the timeline</source>
+        <translation>Acrescenta o clipe de origem (ou o trecho entre entrada e saída) ao fim da linha do tempo</translation>
+    </message>
+    <message>
+        <source>Insert</source>
+        <translation>Inserir</translation>
+    </message>
+    <message>
+        <source>Insert at the playhead, pushing later clips right</source>
+        <translation>Insere no cursor, empurrando os clipes seguintes para a direita</translation>
+    </message>
+    <message>
+        <source>Place on top</source>
+        <translation>Colocar por cima</translation>
+    </message>
+    <message>
+        <source>Put the clip on the track above at the playhead</source>
+        <translation>Põe o clipe na faixa de cima, no cursor</translation>
+    </message>
+    <message>
+        <source>Smart trim</source>
+        <translation>Aparar inteligente</translation>
+    </message>
+    <message>
+        <source>Trim the nearer end of the clip under the playhead to the playhead and close the gap</source>
+        <translation>Apara até o cursor a ponta mais próxima do clipe sob o cursor e fecha o espaço</translation>
+    </message>
+    <message>
+        <source>Split</source>
+        <translation>Dividir</translation>
+    </message>
+    <message>
+        <source>Split at playhead</source>
+        <translation>Dividir no cursor</translation>
+    </message>
+    <message>
+        <source>Captions</source>
+        <translation>Legendas</translation>
+    </message>
+    <message>
+        <source>Automatic captions synced to the speech</source>
+        <translation>Legendas automáticas sincronizadas com a fala</translation>
+    </message>
+    <message>
+        <source>Generate cuts</source>
+        <translation>Gerar cortes</translation>
+    </message>
+    <message>
+        <source>Shorts, Reels and TikToks from a long video</source>
+        <translation>Shorts, Reels e TikToks a partir de um vídeo longo</translation>
     </message>
 </context>
 <context>
@@ -470,10 +552,6 @@
     <message>
         <source>Export to</source>
         <translation>Exportar para</translation>
-    </message>
-    <message>
-        <source>Format</source>
-        <translation>Formato</translation>
     </message>
     <message>
         <source>audio</source>
@@ -484,8 +562,8 @@
         <translation>tamanho do projeto</translation>
     </message>
     <message>
-        <source>Settings</source>
-        <translation>Configurações</translation>
+        <source>Render Settings</source>
+        <translation>Configurações de renderização</translation>
     </message>
     <message>
         <source>This is a horizontal project</source>
@@ -506,6 +584,10 @@
     <message>
         <source>Choose…</source>
         <translation>Escolher…</translation>
+    </message>
+    <message>
+        <source>Encoder</source>
+        <translation>Codificador</translation>
     </message>
     <message>
         <source>Use the graphics card (%1)</source>
@@ -540,6 +622,10 @@
         <translation>Melhor</translation>
     </message>
     <message>
+        <source>Range</source>
+        <translation>Intervalo</translation>
+    </message>
+    <message>
         <source>Whole timeline</source>
         <translation>Linha do tempo inteira</translation>
     </message>
@@ -548,8 +634,23 @@
         <translation>Entrada a saída</translation>
     </message>
     <message>
-        <source>Add to render queue</source>
+        <source>Add to Render Queue</source>
         <translation>Adicionar à fila de renderização</translation>
+    </message>
+    <message>
+        <source>Timeline</source>
+        <translation>Linha do tempo</translation>
+    </message>
+    <message>
+        <source>Render Queue</source>
+        <translation>Fila de renderização</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n job(s)</source>
+        <translation>
+            <numerusform>%n trabalho</numerusform>
+            <numerusform>%n trabalhos</numerusform>
+        </translation>
     </message>
     <message>
         <source>Export subtitles (SRT)…</source>
@@ -558,10 +659,6 @@
     <message>
         <source>Subtitles (*.srt)</source>
         <translation>Legendas (*.srt)</translation>
-    </message>
-    <message>
-        <source>Render queue</source>
-        <translation>Fila de renderização</translation>
     </message>
     <message>
         <source>Clear finished</source>
@@ -605,30 +702,57 @@
     </message>
 </context>
 <context>
-    <name>EditPage</name>
+    <name>EditIndex</name>
     <message>
-        <source>Import media</source>
-        <translation>Importar mídia</translation>
+        <source>Edit Index</source>
+        <translation>Índice de edição</translation>
     </message>
     <message>
-        <source>Media</source>
-        <translation>Mídia</translation>
-    </message>
-    <message>
-        <source>Library</source>
-        <translation>Biblioteca</translation>
-    </message>
-    <message>
-        <source>Search</source>
-        <translation>Busca</translation>
-    </message>
-    <message>
-        <source>Inspector</source>
-        <translation>Inspetor</translation>
+        <source>Events</source>
+        <translation>Eventos</translation>
     </message>
     <message>
         <source>History</source>
         <translation>Histórico</translation>
+    </message>
+    <message>
+        <source>Marker</source>
+        <translation>Marcador</translation>
+    </message>
+    <message>
+        <source>Track</source>
+        <translation>Faixa</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nome</translation>
+    </message>
+    <message>
+        <source>Record in</source>
+        <translation>Entrada</translation>
+    </message>
+</context>
+<context>
+    <name>EditPage</name>
+    <message>
+        <source>Media Pool</source>
+        <translation>Media Pool</translation>
+    </message>
+    <message>
+        <source>Effects Library</source>
+        <translation>Biblioteca de efeitos</translation>
+    </message>
+    <message>
+        <source>Edit Index</source>
+        <translation>Índice de edição</translation>
+    </message>
+    <message>
+        <source>Mixer</source>
+        <translation>Mixer</translation>
+    </message>
+    <message>
+        <source>Inspector</source>
+        <translation>Inspetor</translation>
     </message>
 </context>
 <context>
@@ -1539,12 +1663,20 @@
 <context>
     <name>EffectsPage</name>
     <message>
-        <source>Library</source>
-        <translation>Biblioteca</translation>
+        <source>Effects Library</source>
+        <translation>Biblioteca de efeitos</translation>
     </message>
     <message>
-        <source>Effect stack</source>
-        <translation>Pilha de efeitos</translation>
+        <source>Inspector</source>
+        <translation>Inspetor</translation>
+    </message>
+    <message>
+        <source>Nodes</source>
+        <translation>Nós</translation>
+    </message>
+    <message>
+        <source>Keyframes</source>
+        <translation>Quadros-chave</translation>
     </message>
 </context>
 <context>
@@ -1640,6 +1772,10 @@
         <translation>Selecione um clipe na linha do tempo para ver suas configurações e efeitos.</translation>
     </message>
     <message>
+        <source>Caption</source>
+        <translation>Legenda</translation>
+    </message>
+    <message>
         <source>Title</source>
         <translation>Título</translation>
     </message>
@@ -1708,6 +1844,10 @@
         <translation>Ignorar</translation>
     </message>
     <message>
+        <source>Enable</source>
+        <translation>Ativar</translation>
+    </message>
+    <message>
         <source>Remove</source>
         <translation>Remover</translation>
     </message>
@@ -1718,10 +1858,6 @@
 </context>
 <context>
     <name>KeyframeEditor</name>
-    <message>
-        <source>Keyframes</source>
-        <translation>Quadros-chave</translation>
-    </message>
     <message>
         <source>Keyframe at playhead</source>
         <translation>Quadro-chave no cursor</translation>
@@ -1736,6 +1872,21 @@
     <message>
         <source>Add Transform, Crop, Text or Volume to a clip to animate it</source>
         <translation>Adicione Transformar, Recortar, Texto ou Volume a um clipe para animá-lo</translation>
+    </message>
+</context>
+<context>
+    <name>Knob</name>
+    <message>
+        <source>Center</source>
+        <translation>Centro</translation>
+    </message>
+    <message>
+        <source>L %1</source>
+        <translation>E %1</translation>
+    </message>
+    <message>
+        <source>R %1</source>
+        <translation>D %1</translation>
     </message>
 </context>
 <context>
@@ -1898,8 +2049,12 @@ Seu Nome</translation>
         <translation>Legendas (*.srt)</translation>
     </message>
     <message>
-        <source>Export subtitles</source>
-        <translation>Exportar legendas</translation>
+        <source>Choose a clip in the media pool first</source>
+        <translation>Escolha primeiro um clipe no Media Pool</translation>
+    </message>
+    <message>
+        <source>Move the playhead over a clip to trim it</source>
+        <translation>Leve o cursor até um clipe para apará-lo</translation>
     </message>
     <message>
         <source>Cross dissolve</source>
@@ -2034,8 +2189,16 @@ Seu Nome</translation>
         <translation>Criar proxies para mídia 4K automaticamente</translation>
     </message>
     <message>
-        <source>Dark interface</source>
-        <translation>Interface escura</translation>
+        <source>Not saved yet</source>
+        <translation>Ainda não salvo</translation>
+    </message>
+    <message>
+        <source>Unsaved changes</source>
+        <translation>Alterações não salvas</translation>
+    </message>
+    <message>
+        <source>Saved</source>
+        <translation>Salvo</translation>
     </message>
     <message>
         <source>Quit</source>
@@ -2058,24 +2221,20 @@ Seu Nome</translation>
         <translation>Efeitos</translation>
     </message>
     <message>
+        <source>Media</source>
+        <translation>Mídia</translation>
+    </message>
+    <message>
+        <source>Cut</source>
+        <translation>Corte</translation>
+    </message>
+    <message>
         <source>Audio</source>
         <translation>Áudio</translation>
     </message>
     <message>
         <source>Deliver</source>
         <translation>Entregar</translation>
-    </message>
-    <message>
-        <source>Generate cuts</source>
-        <translation>Gerar cortes</translation>
-    </message>
-    <message>
-        <source>Shorts, Reels and TikToks from a long video</source>
-        <translation>Shorts, Reels e TikToks a partir de um vídeo longo</translation>
-    </message>
-    <message>
-        <source>Automatic captions</source>
-        <translation>Legendas automáticas</translation>
     </message>
     <message>
         <source>Undo %1</source>
@@ -2094,12 +2253,12 @@ Seu Nome</translation>
         <translation>Refazer</translation>
     </message>
     <message>
-        <source>Save (Ctrl+S)</source>
-        <translation>Salvar (Ctrl+S)</translation>
-    </message>
-    <message>
         <source>Export</source>
         <translation>Exportar</translation>
+    </message>
+    <message>
+        <source>Open the Deliver page</source>
+        <translation>Abrir a página Entregar</translation>
     </message>
     <message>
         <source>Recover unsaved work?</source>
@@ -2117,18 +2276,6 @@ Seu Nome</translation>
         <source>Recover</source>
         <translation>Recuperar</translation>
     </message>
-    <message>
-        <source>GPU encode: %1</source>
-        <translation>Codificação na GPU: %1</translation>
-    </message>
-    <message>
-        <source>GPU encode: none</source>
-        <translation>Codificação na GPU: nenhuma</translation>
-    </message>
-    <message>
-        <source>Checking GPU encoders…</source>
-        <translation>Verificando codificadores da GPU…</translation>
-    </message>
 </context>
 <context>
     <name>MediaBin</name>
@@ -2144,12 +2291,32 @@ Seu Nome</translation>
 <context>
     <name>MediaBinPanel</name>
     <message>
+        <source>Media Pool</source>
+        <translation>Media Pool</translation>
+    </message>
+    <message>
+        <source>Find a moment by its words</source>
+        <translation>Encontrar um momento pelas palavras</translation>
+    </message>
+    <message>
+        <source>Thumbnails</source>
+        <translation>Miniaturas</translation>
+    </message>
+    <message>
+        <source>List</source>
+        <translation>Lista</translation>
+    </message>
+    <message>
         <source>Append to timeline</source>
         <translation>Acrescentar à linha do tempo</translation>
     </message>
     <message>
         <source>Open in source monitor</source>
         <translation>Abrir no monitor de origem</translation>
+    </message>
+    <message>
+        <source>Generate cuts for Shorts/Reels…</source>
+        <translation>Gerar cortes para Shorts/Reels…</translation>
     </message>
     <message>
         <source>Delete proxy</source>
@@ -2166,10 +2333,6 @@ Seu Nome</translation>
     <message>
         <source>Remove from project</source>
         <translation>Remover do projeto</translation>
-    </message>
-    <message>
-        <source>Import</source>
-        <translation>Importar</translation>
     </message>
     <message numerus="yes">
         <source>%n item(s)</source>
@@ -2193,6 +2356,117 @@ Seu Nome</translation>
     <message>
         <source>Import media</source>
         <translation>Importar mídia</translation>
+    </message>
+</context>
+<context>
+    <name>MediaPage</name>
+    <message>
+        <source>Import subtitles</source>
+        <translation>Importar legendas</translation>
+    </message>
+    <message>
+        <source>Subtitles (*.srt)</source>
+        <translation>Legendas (*.srt)</translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation>Importar</translation>
+    </message>
+    <message>
+        <source>Drop videos, music and pictures here, or click to choose files</source>
+        <translation>Solte vídeos, músicas e imagens aqui, ou clique para escolher arquivos</translation>
+    </message>
+    <message>
+        <source>Import media…</source>
+        <translation>Importar mídia…</translation>
+    </message>
+    <message>
+        <source>Import media</source>
+        <translation>Importar mídia</translation>
+    </message>
+    <message>
+        <source>Import subtitles (SRT)…</source>
+        <translation>Importar legendas (SRT)…</translation>
+    </message>
+    <message>
+        <source>Open video and generate cuts</source>
+        <translation>Abrir vídeo e gerar cortes</translation>
+    </message>
+    <message>
+        <source>Media</source>
+        <translation>Mídia</translation>
+    </message>
+    <message>
+        <source>Length</source>
+        <translation>Duração</translation>
+    </message>
+    <message>
+        <source>Format</source>
+        <translation>Formato</translation>
+    </message>
+    <message>
+        <source>Frame rate</source>
+        <translation>Taxa de quadros</translation>
+    </message>
+    <message>
+        <source>Metadata</source>
+        <translation>Metadados</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Tipo</translation>
+    </message>
+    <message>
+        <source>Video</source>
+        <translation>Vídeo</translation>
+    </message>
+    <message>
+        <source>Audio</source>
+        <translation>Áudio</translation>
+    </message>
+    <message>
+        <source>Image</source>
+        <translation>Imagem</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Detalhes</translation>
+    </message>
+    <message>
+        <source>Proxy</source>
+        <translation>Proxy</translation>
+    </message>
+    <message>
+        <source>Ready</source>
+        <translation>Pronto</translation>
+    </message>
+    <message>
+        <source>Making…</source>
+        <translation>Gerando…</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Nenhum</translation>
+    </message>
+    <message>
+        <source>On the timeline</source>
+        <translation>Na linha do tempo</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Sim</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>Não</translation>
+    </message>
+    <message>
+        <source>Append to timeline</source>
+        <translation>Acrescentar à linha do tempo</translation>
+    </message>
+    <message>
+        <source>Select a clip in the media pool to see its details</source>
+        <translation>Selecione um clipe no Media Pool para ver os detalhes</translation>
     </message>
 </context>
 <context>
@@ -2231,98 +2505,104 @@ Seu Nome</translation>
     </message>
 </context>
 <context>
-    <name>MonitorPanel</name>
+    <name>Mixer</name>
     <message>
-        <source>Source</source>
-        <translation>Origem</translation>
+        <source>Unmute</source>
+        <translation>Ativar som</translation>
+    </message>
+    <message>
+        <source>Mute</source>
+        <translation>Silenciar</translation>
+    </message>
+    <message>
+        <source>Solo</source>
+        <translation>Solo</translation>
+    </message>
+    <message>
+        <source>Master</source>
+        <translation>Mestre</translation>
+    </message>
+    <message>
+        <source>Monitor level (not exported)</source>
+        <translation>Volume de escuta (não vai para a exportação)</translation>
+    </message>
+    <message>
+        <source>Monitor</source>
+        <translation>Escuta</translation>
+    </message>
+</context>
+<context>
+    <name>NodeGraph</name>
+    <message>
+        <source>Transform</source>
+        <translation>Transformar</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation>Cor</translation>
+    </message>
+    <message>
+        <source>Stylize</source>
+        <translation>Estilizar</translation>
+    </message>
+    <message>
+        <source>Keying</source>
+        <translation>Recorte por cor</translation>
+    </message>
+    <message>
+        <source>Text</source>
+        <translation>Texto</translation>
+    </message>
+    <message>
+        <source>Audio</source>
+        <translation>Áudio</translation>
     </message>
     <message>
         <source>Timeline</source>
         <translation>Linha do tempo</translation>
     </message>
     <message>
-        <source>Preview resolution</source>
-        <translation>Resolução da prévia</translation>
+        <source>Click a node to edit it in the inspector</source>
+        <translation>Clique em um nó para editá-lo no inspetor</translation>
     </message>
     <message>
-        <source>Before</source>
-        <translation>Antes</translation>
+        <source>Add an effect from the library to start the chain</source>
+        <translation>Adicione um efeito da biblioteca para começar a cadeia</translation>
     </message>
     <message>
-        <source>After</source>
-        <translation>Depois</translation>
+        <source>Select a clip to see its effect chain</source>
+        <translation>Selecione um clipe para ver a cadeia de efeitos</translation>
     </message>
     <message>
-        <source>Drop clips on the timeline to see them here</source>
-        <translation>Coloque clipes na linha do tempo para vê-los aqui</translation>
+        <source>Bypass</source>
+        <translation>Ignorar</translation>
     </message>
     <message>
-        <source>Start (Home)</source>
-        <translation>Início (Home)</translation>
+        <source>Enable</source>
+        <translation>Ativar</translation>
+    </message>
+</context>
+<context>
+    <name>PageBar</name>
+    <message>
+        <source>Project settings</source>
+        <translation>Configurações do projeto</translation>
     </message>
     <message>
-        <source>Previous edit (Up)</source>
-        <translation>Corte anterior (Cima)</translation>
+        <source>GPU encode: %1</source>
+        <translation>Codificação na GPU: %1</translation>
     </message>
     <message>
-        <source>Previous frame (Left)</source>
-        <translation>Quadro anterior (Esquerda)</translation>
+        <source>GPU encode: none</source>
+        <translation>Codificação na GPU: nenhuma</translation>
     </message>
     <message>
-        <source>Play backwards (J)</source>
-        <translation>Reproduzir para trás (J)</translation>
+        <source>Checking GPU encoders…</source>
+        <translation>Verificando codificadores da GPU…</translation>
     </message>
     <message>
-        <source>Pause (Space)</source>
-        <translation>Pausar (Espaço)</translation>
-    </message>
-    <message>
-        <source>Play (Space)</source>
-        <translation>Reproduzir (Espaço)</translation>
-    </message>
-    <message>
-        <source>Faster forward (L)</source>
-        <translation>Avançar mais rápido (L)</translation>
-    </message>
-    <message>
-        <source>Next frame (Right)</source>
-        <translation>Próximo quadro (Direita)</translation>
-    </message>
-    <message>
-        <source>Next edit (Down)</source>
-        <translation>Próximo corte (Baixo)</translation>
-    </message>
-    <message>
-        <source>Mark in (I)</source>
-        <translation>Marcar entrada (I)</translation>
-    </message>
-    <message>
-        <source>Mark out (O)</source>
-        <translation>Marcar saída (O)</translation>
-    </message>
-    <message>
-        <source>Clear in/out</source>
-        <translation>Limpar entrada/saída</translation>
-    </message>
-    <message>
-        <source>Insert</source>
-        <translation>Inserir</translation>
-    </message>
-    <message>
-        <source>Insert the marked range at the playhead, pushing clips right</source>
-        <translation>Inserir o trecho marcado no cursor, empurrando os clipes</translation>
-    </message>
-    <message>
-        <source>Overwrite</source>
-        <translation>Sobrescrever</translation>
-    </message>
-    <message>
-        <source>Place the marked range at the playhead, replacing what is there</source>
-        <translation>Colocar o trecho marcado no cursor, substituindo o que estiver lá</translation>
-    </message>
-    <message>
-        <source>Preview volume</source>
-        <translation>Volume da prévia</translation>
+        <source>Project manager</source>
+        <translation>Gerenciador de projetos</translation>
     </message>
 </context>
 <context>
@@ -2728,16 +3008,28 @@ Seu Nome</translation>
         <translation>Novo projeto</translation>
     </message>
     <message>
-        <source>Start from a template; sizes can change later in Project settings.</source>
-        <translation>Comece de um modelo; o tamanho pode mudar depois em Configurações do projeto.</translation>
-    </message>
-    <message>
-        <source>Generate cuts from a long video</source>
-        <translation>Gerar cortes de um vídeo longo</translation>
-    </message>
-    <message>
         <source>Vertical clips for TikTok, Reels and Shorts, with captions, found by local AI</source>
         <translation>Clipes verticais para TikTok, Reels e Shorts, com legendas, escolhidos por IA local</translation>
+    </message>
+    <message>
+        <source>Choose a video</source>
+        <translation>Escolher um vídeo</translation>
+    </message>
+    <message>
+        <source>Empty 1080p project at 30 fps</source>
+        <translation>Projeto vazio 1080p a 30 fps</translation>
+    </message>
+    <message>
+        <source>Missing: %1</source>
+        <translation>Não encontrado: %1</translation>
+    </message>
+    <message>
+        <source>Templates</source>
+        <translation>Modelos</translation>
+    </message>
+    <message>
+        <source>Sizes can change later in Project settings.</source>
+        <translation>O tamanho pode mudar depois nas Configurações do projeto.</translation>
     </message>
     <message>
         <source>Empty project</source>
@@ -2780,8 +3072,36 @@ Seu Nome</translation>
         <translation>Projetos recentes</translation>
     </message>
     <message>
+        <source>YouTube</source>
+        <translation>YouTube</translation>
+    </message>
+    <message>
+        <source>Shorts / Reels</source>
+        <translation>Shorts / Reels</translation>
+    </message>
+    <message>
+        <source>Square</source>
+        <translation>Quadrado</translation>
+    </message>
+    <message>
+        <source>1080×1080 for feeds and carousels</source>
+        <translation>1080×1080 para feed e carrossel</translation>
+    </message>
+    <message>
+        <source>Project Manager</source>
+        <translation>Gerenciador de projetos</translation>
+    </message>
+    <message>
         <source>Open…</source>
         <translation>Abrir…</translation>
+    </message>
+    <message>
+        <source>Open project</source>
+        <translation>Abrir projeto</translation>
+    </message>
+    <message>
+        <source>Open video and generate cuts</source>
+        <translation>Abrir vídeo e gerar cortes</translation>
     </message>
     <message>
         <source>No recent projects</source>
@@ -2982,60 +3302,64 @@ Seu Nome</translation>
         <translation>Marcador</translation>
     </message>
     <message>
-        <source>Select and move (A)</source>
-        <translation>Selecionar e mover (A)</translation>
+        <source>Selection mode</source>
+        <translation>Modo de seleção</translation>
     </message>
     <message>
-        <source>Razor (B)</source>
-        <translation>Lâmina (B)</translation>
+        <source>Trim edit mode: drag a cut to roll it</source>
+        <translation>Modo de aparar: arraste um corte para deslocá-lo</translation>
     </message>
     <message>
-        <source>Roll edit point (R)</source>
-        <translation>Rolar ponto de corte (R)</translation>
+        <source>Slip contents</source>
+        <translation>Deslizar conteúdo</translation>
     </message>
     <message>
-        <source>Slip contents (Y)</source>
-        <translation>Deslocar conteúdo (Y)</translation>
+        <source>Slide between neighbours</source>
+        <translation>Deslocar entre vizinhos</translation>
     </message>
     <message>
-        <source>Slide between neighbours (U)</source>
-        <translation>Deslizar entre vizinhos (U)</translation>
+        <source>Blade edit mode</source>
+        <translation>Modo lâmina</translation>
+    </message>
+    <message>
+        <source>Magnetic snapping</source>
+        <translation>Encaixe magnético</translation>
+    </message>
+    <message>
+        <source>Linked selection</source>
+        <translation>Seleção vinculada</translation>
+    </message>
+    <message>
+        <source>Split at playhead</source>
+        <translation>Dividir no cursor</translation>
+    </message>
+    <message>
+        <source>Cross dissolve at playhead</source>
+        <translation>Dissolver no cursor</translation>
+    </message>
+    <message>
+        <source>Freeze frame</source>
+        <translation>Congelar quadro</translation>
+    </message>
+    <message>
+        <source>Add marker</source>
+        <translation>Adicionar marcador</translation>
+    </message>
+    <message>
+        <source>Zoom out</source>
+        <translation>Afastar</translation>
+    </message>
+    <message>
+        <source>Ctrl+wheel</source>
+        <translation>Ctrl+roda</translation>
     </message>
     <message>
         <source>Ripple: trims and deletes close gaps</source>
         <translation>Ripple: aparar e excluir fecham os espaços</translation>
     </message>
     <message>
-        <source>Magnetic snapping (N)</source>
-        <translation>Encaixe magnético (N)</translation>
-    </message>
-    <message>
-        <source>Split at playhead (S)</source>
-        <translation>Dividir no cursor (S)</translation>
-    </message>
-    <message>
-        <source>Ripple delete (Shift+Delete)</source>
-        <translation>Excluir e fechar espaço (Shift+Delete)</translation>
-    </message>
-    <message>
-        <source>Cross dissolve at playhead (Ctrl+D)</source>
-        <translation>Dissolver no cursor (Ctrl+D)</translation>
-    </message>
-    <message>
-        <source>Freeze frame (Shift+F)</source>
-        <translation>Congelar quadro (Shift+F)</translation>
-    </message>
-    <message>
-        <source>Add marker (M)</source>
-        <translation>Adicionar marcador (M)</translation>
-    </message>
-    <message>
         <source>Add track</source>
         <translation>Adicionar faixa</translation>
-    </message>
-    <message>
-        <source>Zoom out (Ctrl+wheel)</source>
-        <translation>Afastar (Ctrl+roda)</translation>
     </message>
     <message>
         <source>Zoom in</source>
@@ -3048,6 +3372,18 @@ Seu Nome</translation>
 </context>
 <context>
     <name>TrackHeader</name>
+    <message>
+        <source>Double-click to rename</source>
+        <translation>Clique duas vezes para renomear</translation>
+    </message>
+    <message>
+        <source>Unlock track</source>
+        <translation>Destravar faixa</translation>
+    </message>
+    <message>
+        <source>Lock track</source>
+        <translation>Travar faixa</translation>
+    </message>
     <message>
         <source>Show track</source>
         <translation>Mostrar faixa</translation>
@@ -3067,14 +3403,6 @@ Seu Nome</translation>
     <message>
         <source>Solo</source>
         <translation>Solo</translation>
-    </message>
-    <message>
-        <source>Unlock</source>
-        <translation>Destravar</translation>
-    </message>
-    <message>
-        <source>Lock</source>
-        <translation>Travar</translation>
     </message>
 </context>
 <context>
@@ -3189,6 +3517,113 @@ Seu Nome</translation>
     <message>
         <source>Open Settings</source>
         <translation>Abrir Configurações</translation>
+    </message>
+</context>
+<context>
+    <name>Viewer</name>
+    <message>
+        <source>Source</source>
+        <translation>Origem</translation>
+    </message>
+    <message>
+        <source>Timeline</source>
+        <translation>Linha do tempo</translation>
+    </message>
+    <message>
+        <source>Preview resolution</source>
+        <translation>Resolução da prévia</translation>
+    </message>
+    <message>
+        <source>Click a clip in the media pool to view it here</source>
+        <translation>Clique em um clipe do Media Pool para vê-lo aqui</translation>
+    </message>
+    <message>
+        <source>Drop clips on the timeline to see them here</source>
+        <translation>Coloque clipes na linha do tempo para vê-los aqui</translation>
+    </message>
+    <message>
+        <source>Click to play in this viewer</source>
+        <translation>Clique para reproduzir neste visualizador</translation>
+    </message>
+    <message>
+        <source>Before</source>
+        <translation>Antes</translation>
+    </message>
+    <message>
+        <source>After</source>
+        <translation>Depois</translation>
+    </message>
+    <message>
+        <source>Mark in</source>
+        <translation>Marcar entrada</translation>
+    </message>
+    <message>
+        <source>Mark out</source>
+        <translation>Marcar saída</translation>
+    </message>
+    <message>
+        <source>Clear in/out</source>
+        <translation>Limpar entrada/saída</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Início</translation>
+    </message>
+    <message>
+        <source>Previous edit</source>
+        <translation>Edição anterior</translation>
+    </message>
+    <message>
+        <source>Previous frame</source>
+        <translation>Quadro anterior</translation>
+    </message>
+    <message>
+        <source>Play backwards</source>
+        <translation>Reproduzir para trás</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Pausar</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Reproduzir</translation>
+    </message>
+    <message>
+        <source>Space</source>
+        <translation>Espaço</translation>
+    </message>
+    <message>
+        <source>Faster forward</source>
+        <translation>Avançar mais rápido</translation>
+    </message>
+    <message>
+        <source>Next frame</source>
+        <translation>Próximo quadro</translation>
+    </message>
+    <message>
+        <source>Next edit</source>
+        <translation>Próxima edição</translation>
+    </message>
+    <message>
+        <source>End</source>
+        <translation>Fim</translation>
+    </message>
+    <message>
+        <source>Insert the marked range at the playhead, pushing clips right</source>
+        <translation>Inserir o trecho marcado no cursor, empurrando os clipes</translation>
+    </message>
+    <message>
+        <source>Place the marked range at the playhead, replacing what is there</source>
+        <translation>Colocar o trecho marcado no cursor, substituindo o que estiver lá</translation>
+    </message>
+    <message>
+        <source>Append to the end of the timeline</source>
+        <translation>Acrescentar ao fim da linha do tempo</translation>
+    </message>
+    <message>
+        <source>Preview volume</source>
+        <translation>Volume da prévia</translation>
     </message>
 </context>
 </TS>

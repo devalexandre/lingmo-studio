@@ -22,6 +22,7 @@ Item {
     property string trackKind: "video"
     property bool locked: false
     property bool dimmed: false
+    property bool minimal: false   // overview strip: colour only
     readonly property bool selected: editor.selection.indexOf(info.id) >= 0
     readonly property real ppf: owner.ppf
 
@@ -39,39 +40,73 @@ Item {
     z: interacting ? 10 : (selected ? 2 : 1)
     opacity: dimmed ? 0.45 : 1
 
-    readonly property color baseColor: {
+    readonly property bool isCaption: trackKind === "subtitle"
+    readonly property color fillColor: {
+        if (info.kind === "color" && info.color)
+            return info.color
         switch (info.mediaKind) {
-        case "title": return LingmoUI.Theme.purpleColor
-        case "compound": return LingmoUI.Theme.orangeColor
-        case "audio": return LingmoUI.Theme.greenColor
-        case "image": return LingmoUI.Theme.blueColor
+        case "title": return isCaption ? StudioTheme.captionClip : StudioTheme.titleClip
+        case "compound": return StudioTheme.compoundClip
+        case "audio": return StudioTheme.audioClip
         }
-        if (trackKind === "subtitle")
-            return LingmoUI.Theme.pinkColor
+        if (isCaption || info.kind === "caption")
+            return StudioTheme.captionClip
         if (trackKind === "audio")
-            return LingmoUI.Theme.greenColor
-        return LingmoUI.Theme.blueColor
+            return StudioTheme.audioClip
+        return StudioTheme.videoClip
     }
-    readonly property bool showThumbs: trackKind !== "audio" && (info.mediaKind === "video" || info.mediaKind === "image") && height > 36
-    readonly property bool showWave: (trackKind === "audio" || info.mediaKind === "audio") && clip.hasAudio !== false
+    readonly property color edgeColor: {
+        switch (info.mediaKind) {
+        case "title": return isCaption ? StudioTheme.captionClipEdge : StudioTheme.titleClipEdge
+        case "compound": return StudioTheme.compoundClipEdge
+        case "audio": return StudioTheme.audioClipEdge
+        }
+        if (isCaption || info.kind === "caption")
+            return StudioTheme.captionClipEdge
+        if (trackKind === "audio")
+            return StudioTheme.audioClipEdge
+        return StudioTheme.videoClipEdge
+    }
+    readonly property int nameBar: minimal || height < 30 ? 0 : 15
+    readonly property bool showThumbs: !minimal && trackKind !== "audio" && (info.mediaKind === "video" || info.mediaKind === "image") && height > 36
+    readonly property bool showWave: !minimal && (trackKind === "audio" || info.mediaKind === "audio") && info.hasAudio !== false
 
     transform: Translate { y: item.moveDY }
 
     Rectangle {
         id: body
         anchors.fill: parent
-        radius: LingmoUI.Theme.tinyRadius
-        color: info.kind === "color" && info.color ? info.color : Qt.rgba(item.baseColor.r, item.baseColor.g, item.baseColor.b, 0.55)
+        radius: StudioTheme.smallRadius
+        color: item.fillColor
         border.width: item.selected ? 2 : 1
-        border.color: item.selected ? LingmoUI.Theme.highlightColor : Qt.rgba(item.baseColor.r, item.baseColor.g, item.baseColor.b, 0.95)
+        border.color: item.selected ? StudioTheme.selection : item.edgeColor
         clip: true
+        Behavior on border.color { ColorAnimation { duration: StudioTheme.fast } }
+
+        // name bar on top, a shade lighter
+        Rectangle {
+            visible: item.nameBar > 0
+            width: parent.width
+            height: item.nameBar
+            color: Qt.lighter(item.fillColor, 1.18)
+            radius: StudioTheme.smallRadius
+        }
+        Rectangle {
+            anchors.fill: parent
+            visible: hoverArea.hovered && !item.selected
+            z: 5
+            color: "#FFFFFF"
+            opacity: 0.05
+        }
+        HoverHandler { id: hoverArea }
 
         // thumbnails along the clip
         Row {
             visible: item.showThumbs
             anchors.fill: parent
-            anchors.topMargin: 16
             anchors.margins: 1
+            anchors.topMargin: item.nameBar
+            spacing: 1
             readonly property real tileW: Math.max(height * editor.projectWidth / editor.projectHeight, item.width / 24)
             Repeater {
                 model: item.showThumbs ? Math.min(24, Math.ceil(item.width / parent.tileW)) : 0
@@ -85,7 +120,7 @@ Item {
                     readonly property int frame: item.info.in + Math.round(index * parent.tileW / item.ppf)
                     // quantize so zooming reuses cached thumbnails
                     source: "image://thumb/" + item.info.mediaId + "/" + (Math.floor(frame / 15) * 15)
-                    opacity: 0.85
+                    opacity: 0.9
                 }
             }
         }
@@ -93,12 +128,13 @@ Item {
         Image {
             visible: item.showWave
             anchors.fill: parent
-            anchors.topMargin: item.trackKind === "audio" ? 14 : parent.height * 0.55
+            anchors.topMargin: item.trackKind === "audio" ? item.nameBar + 1 : parent.height * 0.55
+            anchors.bottomMargin: 1
             fillMode: Image.Stretch
             asynchronous: true
             cache: false
             sourceSize: Qt.size(Math.max(8, Math.min(2048, Math.round(item.width))), Math.max(8, Math.round(height)))
-            source: visible ? "image://wave/" + item.info.mediaId + "/" + item.info.in + "/" + item.info.out + "/" + String(LingmoUI.Theme.textColor).substring(1, 7) : ""
+            source: visible ? "image://wave/" + item.info.mediaId + "/" + item.info.in + "/" + item.info.out + "/" + String(StudioTheme.audioWave).substring(1, 7) : ""
         }
 
         // fades
@@ -114,7 +150,7 @@ Item {
             onPaint: {
                 const ctx = getContext("2d")
                 ctx.reset()
-                ctx.fillStyle = Qt.rgba(0, 0, 0, 0.35)
+                ctx.fillStyle = Qt.rgba(0, 0, 0, 0.4)
                 if (fi > 0) {
                     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(fi * scale, 0); ctx.lineTo(0, height); ctx.closePath(); ctx.fill()
                 }
@@ -129,15 +165,15 @@ Item {
             visible: item.info.transitionIn > 0
             width: item.info.transitionIn * item.ppf
             height: parent.height
-            color: Qt.rgba(LingmoUI.Theme.textColor.r, LingmoUI.Theme.textColor.g, LingmoUI.Theme.textColor.b, 0.18)
-            border.color: LingmoUI.Theme.textColor
+            color: StudioTheme.alpha(StudioTheme.text, 0.16)
+            border.color: StudioTheme.alpha(StudioTheme.text, 0.7)
             border.width: 1
             Canvas {
                 anchors.fill: parent
                 onPaint: {
                     const ctx = getContext("2d")
                     ctx.reset()
-                    ctx.strokeStyle = LingmoUI.Theme.textColor
+                    ctx.strokeStyle = StudioTheme.text
                     ctx.globalAlpha = 0.5
                     ctx.beginPath(); ctx.moveTo(0, height); ctx.lineTo(width, 0); ctx.moveTo(0, 0); ctx.lineTo(width, height); ctx.stroke()
                 }
@@ -154,52 +190,60 @@ Item {
             }
         }
 
-        // label row
+        // label row (in the name bar)
         Row {
-            x: 4 + (item.info.transitionIn > 0 ? item.info.transitionIn * item.ppf : 0)
-            y: 1
-            spacing: 4
-            Label {
+            visible: !item.minimal && item.width > 24
+            x: 5 + (item.info.transitionIn > 0 ? item.info.transitionIn * item.ppf : 0)
+            y: item.nameBar > 0 ? 1 : Math.max(0, (item.height - 14) / 2)
+            spacing: 5
+            Text {
                 text: item.info.name || ""
-                color: LingmoUI.Theme.textColor
-                font.pointSize: LingmoUI.Units.fontCaption
+                color: StudioTheme.text
+                font.family: StudioTheme.font
+                font.pixelSize: StudioTheme.fontSmall
+                font.weight: Font.Medium
                 elide: Text.ElideRight
                 width: Math.min(implicitWidth, Math.max(0, item.width - 60))
             }
-            Label {
+            Text {
                 visible: item.info.speed !== 1 || item.info.ramp === true
                 text: item.info.ramp ? qsTr("ramp") : (item.info.speed < 0 ? qsTr("rev") : item.info.speed + "×")
-                color: LingmoUI.Theme.orangeColor
-                font.pointSize: LingmoUI.Units.fontCaption
-                font.bold: true
+                color: StudioTheme.warning
+                font.family: StudioTheme.font
+                font.pixelSize: StudioTheme.fontSmall
+                font.weight: Font.DemiBold
             }
-            Label {
+            Text {
                 visible: item.info.effects > 0
                 text: "fx"
-                color: LingmoUI.Theme.highlightColor
-                font.pointSize: LingmoUI.Units.fontCaption
-                font.bold: true
+                color: StudioTheme.accentText
+                font.family: StudioTheme.font
+                font.pixelSize: StudioTheme.fontSmall
+                font.weight: Font.Bold
             }
-            Label {
+            Text {
                 visible: item.info.freeze === true
                 text: qsTr("hold")
-                color: LingmoUI.Theme.orangeColor
-                font.pointSize: LingmoUI.Units.fontCaption
+                color: StudioTheme.warning
+                font.family: StudioTheme.font
+                font.pixelSize: StudioTheme.fontSmall
             }
-            Label {
+            StudioIcon {
                 visible: item.info.linked === true
-                text: "⛓"
-                color: LingmoUI.Theme.secondaryTextColor
-                font.pointSize: LingmoUI.Units.fontCaption
+                name: "link"
+                size: 11
+                color: StudioTheme.textSecondary
+                anchors.verticalCenter: parent.verticalCenter
             }
         }
-        Label {
+        Text {
             visible: item.slipFrames !== 0
             anchors.centerIn: parent
             text: (item.slipFrames > 0 ? "+" : "") + item.slipFrames + "f"
-            color: LingmoUI.Theme.textColor
-            font.pointSize: LingmoUI.Units.fontBody
-            font.bold: true
+            color: StudioTheme.text
+            font.family: StudioTheme.font
+            font.pixelSize: StudioTheme.fontBody
+            font.weight: Font.Bold
         }
     }
 
@@ -230,6 +274,11 @@ Item {
                 return
             }
             editor.select(item.info.id, (m.modifiers & (Qt.ControlModifier | Qt.ShiftModifier)) !== 0)
+            if (root.linkedSelection) {
+                const partner = owner.linkedPartner(item.info, item.trackIndex)
+                if (partner.length)
+                    editor.select(partner, true)
+            }
             const p = mapToItem(null, m.x, m.y)
             startX = p.x
             startY = p.y
@@ -314,15 +363,15 @@ Item {
             x: isLeft ? 0 : item.width - width
             width: Math.min(8, item.width / 3)
             height: item.height
-            enabled: !item.locked && owner.tool !== "razor"
+            enabled: !item.locked && owner.tool !== "razor" && !item.minimal
             hoverEnabled: true
             cursorShape: Qt.SizeHorCursor
             property real startX: 0
             Rectangle {
                 anchors.fill: parent
                 visible: parent.containsMouse || parent.pressed
-                color: owner.tool === "roll" ? LingmoUI.Theme.orangeColor : LingmoUI.Theme.highlightColor
-                opacity: 0.8
+                color: owner.tool === "roll" ? StudioTheme.warning : StudioTheme.accent
+                opacity: 0.9
                 radius: 2
             }
             onPressed: function(m) {
@@ -368,7 +417,7 @@ Item {
 
     // fade handles (top corners)
     Repeater {
-        model: item.trackKind === "subtitle" || item.width < 40 ? 0 : 2
+        model: item.trackKind === "subtitle" || item.width < 40 || item.minimal ? 0 : 2
         Rectangle {
             readonly property bool fadeInHandle: index === 0
             width: 9
@@ -377,7 +426,9 @@ Item {
             y: 2
             x: fadeInHandle ? Math.min(item.width - 20, 8 + item.info.fadeIn * item.ppf) - 4
                             : Math.max(20, item.width - 8 - item.info.fadeOut * item.ppf) - 5
-            color: LingmoUI.Theme.textColor
+            color: StudioTheme.text
+            border.width: 1
+            border.color: "#16171A"
             opacity: fadeMouse.containsMouse || fadeMouse.pressed || item.selected ? 0.9 : 0
             MouseArea {
                 id: fadeMouse

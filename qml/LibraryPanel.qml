@@ -23,11 +23,20 @@ Item {
         anchors.fill: parent
         spacing: LingmoUI.Units.smallSpacing
 
-        LingmoUI.SegmentedControl {
+        Row {
             Layout.alignment: Qt.AlignHCenter
-            model: [qsTr("Effects"), qsTr("Transitions"), qsTr("Titles")]
-            currentIndex: lib.section
-            onActivated: function(i) { lib.section = i }
+            spacing: 2
+            Repeater {
+                model: [qsTr("Effects"), qsTr("Transitions"), qsTr("Titles")]
+                StudioButton {
+                    text: modelData
+                    size: 24
+                    fontSize: StudioTheme.fontSmall
+                    checkable: true
+                    checked: lib.section === index
+                    onClicked: lib.section = index
+                }
+            }
         }
 
         ListView {
@@ -35,19 +44,23 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            spacing: 2
+            spacing: 1
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar {}
             section.property: "category"
-            section.delegate: Label {
+            section.delegate: Text {
                 width: list.width
                 text: ({ transform: qsTr("Transform"), color: qsTr("Color"), stylize: qsTr("Stylize"), key: qsTr("Keying"), text: qsTr("Text"), audio: qsTr("Audio"),
                          wipe: qsTr("Wipes and dissolves"), titles: qsTr("Title templates"), generators: qsTr("Generators"), pip: qsTr("Picture in picture") })[section] || section
-                color: LingmoUI.Theme.secondaryTextColor
-                font.pointSize: LingmoUI.Units.fontCaption
-                font.bold: true
-                topPadding: LingmoUI.Units.smallSpacing
-                leftPadding: LingmoUI.Units.smallSpacing
+                color: StudioTheme.textDisabled
+                font.family: StudioTheme.font
+                font.pixelSize: StudioTheme.fontTiny
+                font.weight: Font.DemiBold
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: 0.6
+                topPadding: 10
+                bottomPadding: 3
+                leftPadding: 6
             }
             model: {
                 if (lib.section === 0)
@@ -70,12 +83,12 @@ Item {
                     { category: "generators", name: qsTr("Accent color"), id: String(LingmoUI.Theme.highlightColor), available: true, kind: "color" }
                 ]
             }
-            delegate: LingmoUI.Card {
+            delegate: AbstractButton {
+                id: entry
                 width: list.width
-                height: LingmoUI.Units.controlHeight
-                clickable: modelData.available
-                radius: LingmoUI.Theme.smallRadius
-                opacity: modelData.available ? 1 : 0.5
+                height: 28
+                enabled: modelData.available
+                hoverEnabled: true
                 onClicked: {
                     if (modelData.kind === "effect")
                         editor.addEffectToSelection(modelData.id)
@@ -88,31 +101,48 @@ Item {
                     else
                         editor.addColorClip(modelData.id)
                 }
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: LingmoUI.Units.largeSpacing
-                    anchors.rightMargin: LingmoUI.Units.smallSpacing
+                ToolTip.visible: hovered
+                ToolTip.text: modelData.kind === "effect" ? qsTr("Apply to the selected clips") : modelData.kind === "transition" ? qsTr("Apply at the cut nearest the playhead") : qsTr("Add at the playhead")
+                ToolTip.delay: 700
+                background: Rectangle {
+                    radius: StudioTheme.smallRadius + 1
+                    color: entry.down ? StudioTheme.pressed : entry.hovered ? StudioTheme.raisedHover : "transparent"
+                    Behavior on color { ColorAnimation { duration: StudioTheme.fast } }
+                }
+                contentItem: RowLayout {
+                    spacing: 8
+                    opacity: modelData.available ? 1 : 0.45
                     Rectangle {
-                        visible: modelData.kind === "color"
-                        width: 14
-                        height: 14
+                        Layout.leftMargin: 6
+                        Layout.preferredWidth: 14
+                        Layout.preferredHeight: 14
                         radius: 3
                         color: modelData.kind === "color" ? modelData.id : "transparent"
-                        border.color: LingmoUI.Theme.borderColor
+                        border.width: modelData.kind === "color" ? 1 : 0
+                        border.color: StudioTheme.border
+                        StudioIcon {
+                            anchors.centerIn: parent
+                            visible: modelData.kind !== "color"
+                            name: modelData.kind === "transition" ? "dissolve" : modelData.kind === "title" ? "captions" : modelData.kind === "pip" ? "place-top" : "fx-library"
+                            size: 13
+                            color: entry.hovered ? StudioTheme.accentText : StudioTheme.textSecondary
+                        }
                     }
-                    Label {
+                    Text {
                         Layout.fillWidth: true
                         text: modelData.name + (modelData.available ? "" : " — " + qsTr("not installed"))
-                        font.pointSize: LingmoUI.Units.fontBody
-                        color: LingmoUI.Theme.textColor
+                        color: StudioTheme.text
+                        font.family: StudioTheme.font
+                        font.pixelSize: StudioTheme.fontBody
                         elide: Text.ElideRight
                     }
-                    LingmoUI.IconButton {
-                        iconName: "list-add"
-                        size: 24
-                        enabled: modelData.available
-                        tipText: modelData.kind === "effect" ? qsTr("Apply to the selected clips") : modelData.kind === "transition" ? qsTr("Apply at the cut nearest the playhead") : qsTr("Add at the playhead")
-                        onClicked: parent.parent.clicked()
+                    StudioIcon {
+                        Layout.rightMargin: 6
+                        name: "plus"
+                        size: 13
+                        color: StudioTheme.textSecondary
+                        opacity: entry.hovered ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: StudioTheme.fast } }
                     }
                 }
             }

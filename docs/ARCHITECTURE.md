@@ -5,7 +5,7 @@ Lingmo Studio is a video editor built on the [MLT framework](https://www.mltfram
 that uses the shared Lingmo components (`LingmoUI.CompatibleModule`).
 
 ```
-            QML pages (Edit · Color · Effects · Audio · Deliver)
+   QML pages (Media · Cut · Edit · Effects · Color · Audio · Deliver)
                          │ properties / Q_INVOKABLE calls
  ┌───────────────────────▼────────────────────────────────────────┐
  │ Editor (src/app/editor.*)  — the only controller QML talks to   │
@@ -35,6 +35,13 @@ that uses the shared Lingmo components (`LingmoUI.CompatibleModule`).
  │  reframe.*      subject path smoothing → Position X keyframes    │
  └──────────────────────────────────────────────────────────────────┘
 ```
+
+The pages sit behind a page bar at the bottom of the window. The workspace
+is always charcoal (`qml/StudioTheme.qml`, a singleton whose palette is also
+handed to `LingmoUI.Theme`), and icons are Studio's own monochrome SVGs
+(`data/icons`) tinted through `IconItem.color`. There is one MLT player: the
+Edit page's source and timeline viewers share it, the inactive one holding
+its last frame.
 
 ## Model
 

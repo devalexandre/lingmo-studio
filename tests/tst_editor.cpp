@@ -125,6 +125,27 @@ private Q_SLOTS:
         // a grade is copied and pasted between clips
         m_editor->addEffect(clip, QStringLiteral("wheels"));
         m_editor->setWheel(clip, QStringLiteral("gain"), 1.2, 1.0, 0.9);
+        // the offset wheel re-balances lift and gain: offset = gain * lift, slope kept
+        {
+            auto wheelParams = [&] {
+                for (const QVariant &e : m_editor->clipInfo(clip).value(QStringLiteral("effects")).toList())
+                    if (e.toMap().value(QStringLiteral("type")) == QLatin1String("wheels"))
+                        return e.toMap().value(QStringLiteral("params")).toMap();
+                return QVariantMap();
+            };
+            const int steps = m_editor->history().size();
+            m_editor->setWheelOffset(clip, 0.05, 0.0, -0.02);
+            m_editor->setWheelOffset(clip, 0.1, 0.0, -0.04);
+            QCOMPARE(m_editor->history().size(), steps + 1);
+            const QVariantMap p = wheelParams();
+            const double gr = p.value(QStringLiteral("gain_r")).toDouble(), lr = p.value(QStringLiteral("lift_r")).toDouble();
+            QVERIFY(qAbs(gr * lr - 0.1) < 1e-6);
+            QVERIFY(qAbs(gr * (1 - lr) - 1.2) < 1e-6);
+            QVERIFY(qAbs(p.value(QStringLiteral("gain_g")).toDouble() - 1.0) < 1e-6);
+            m_editor->setWheelOffset(clip, 0, 0, 0);
+            QVERIFY(qAbs(wheelParams().value(QStringLiteral("gain_r")).toDouble() - 1.2) < 1e-6);
+            QVERIFY(qAbs(wheelParams().value(QStringLiteral("lift_r")).toDouble()) < 1e-6);
+        }
         m_editor->copyGrade(clip);
         QVERIFY(m_editor->hasGrade());
         const QVariantMap info = m_editor->clipInfo(clip);

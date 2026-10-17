@@ -10,14 +10,16 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import LingmoUI.CompatibleModule 3.0 as LingmoUI
 
-// Color page: viewer with before/after split, scopes, lift/gamma/gain wheels,
-// curves, and the color effects of the selected clip (HSL qualifier, LUT…).
+// Color page: viewer with scopes beside it, the program's clips as a node
+// strip, and the grading tools below in tabs: colour wheels (lift, gamma,
+// gain, offset), curves, the HSL qualifier, primaries and LUTs.
 SplitView {
     id: page
     orientation: Qt.Vertical
+    handle: PanelHandle { }
     property bool active: false
+    property int tab: 0
 
     readonly property var sel: editor.selectedClip
     readonly property bool hasClip: sel && sel.id !== undefined
@@ -32,6 +34,8 @@ SplitView {
     readonly property var wheels: effectOf("wheels")
     readonly property var curvesFx: effectOf("curves")
     function w(key, def) { return wheels ? Number(wheels.params[key]) : def }
+    // offset = the black level the lift/gain pair adds (gain × lift)
+    function off(c) { return wheels ? Number(wheels.params["gain_" + c]) * Number(wheels.params["lift_" + c]) : 0 }
 
     // Like a grading suite, the Color page works on the clip under the
     // playhead (top-most visible video track)
@@ -66,37 +70,49 @@ SplitView {
         function onDocumentChanged() { Qt.callLater(page.autoSelect) }
     }
 
+    // ---------------------------------------------------- viewer | scopes
     SplitView {
         SplitView.fillHeight: true
-        SplitView.minimumHeight: 260
+        SplitView.minimumHeight: 240
         orientation: Qt.Horizontal
+        handle: PanelHandle { }
 
         MonitorPanel {
             id: monitor
             SplitView.fillWidth: true
+            SplitView.minimumWidth: 400
             showSourceControls: false
-            compare: compareSwitch.checked
+            compare: compareButton.checked
         }
 
         StudioPanel {
             id: scopes
             title: qsTr("Scopes")
-            SplitView.preferredWidth: 420
+            icon: "scopes"
+            SplitView.preferredWidth: 400
             SplitView.minimumWidth: 260
             property int kind: 0
             readonly property var kinds: ["waveform", "parade", "vectorscope", "histogram"]
             actions: [
-                ComboBox {
-                    implicitWidth: 130
-                    model: [qsTr("Waveform"), qsTr("RGB parade"), qsTr("Vectorscope"), qsTr("Histogram")]
-                    currentIndex: scopes.kind
-                    onActivated: function(i) { scopes.kind = i }
+                Row {
+                    spacing: 1
+                    Repeater {
+                        model: [qsTr("Waveform"), qsTr("Parade"), qsTr("Vector"), qsTr("Histogram")]
+                        StudioButton {
+                            text: modelData
+                            size: 22
+                            fontSize: StudioTheme.fontTiny
+                            checkable: true
+                            checked: scopes.kind === index
+                            onClicked: scopes.kind = index
+                        }
+                    }
                 }
             ]
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: LingmoUI.Units.smallSpacing
-                spacing: LingmoUI.Units.smallSpacing
+                anchors.margins: 6
+                spacing: 6
                 ScopeView {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -104,114 +120,201 @@ SplitView {
                 }
                 ScopeView {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: parent.height * 0.35
+                    Layout.preferredHeight: parent.height * 0.38
                     kind: scopes.kind === 2 ? "waveform" : "vectorscope"
                 }
             }
         }
     }
 
+    // ---------------------------------------------------- clips as nodes
+    ClipStrip {
+        SplitView.preferredHeight: 104
+        SplitView.minimumHeight: 104
+        SplitView.maximumHeight: 104
+    }
+
+    // ---------------------------------------------------- grading tools
     StudioPanel {
         SplitView.preferredHeight: 330
-        SplitView.minimumHeight: 240
-        title: page.hasClip ? qsTr("Grade: %1").arg(page.sel.name || "") : qsTr("Select a clip to grade")
-        actions: [
-            Switch { id: compareSwitch; text: qsTr("Before / after") },
-            LingmoUI.ActionButton { text: qsTr("Copy grade"); enabled: page.hasClip; onClicked: editor.copyGrade(page.sel.id) },
-            LingmoUI.ActionButton { text: qsTr("Paste grade"); enabled: editor.hasGrade && editor.selection.length > 0; onClicked: editor.pasteGrade() },
-            LingmoUI.ActionButton { text: qsTr("Reset"); destructive: true; subtle: true; enabled: page.hasClip; onClicked: editor.resetGrade(page.sel.id) }
-        ]
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: LingmoUI.Units.smallSpacing
-            spacing: LingmoUI.Units.smallSpacing
-            enabled: page.hasClip
-
-            // Wheels
-            LingmoUI.Card {
-                Layout.fillHeight: true
-                Layout.preferredWidth: 520
-                color: LingmoUI.Theme.backgroundColor
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: LingmoUI.Units.smallSpacing
-                    ColorWheel {
-                        Layout.fillWidth: true
-                        label: qsTr("Lift")
-                        neutral: 0
-                        range: 0.25
-                        r: page.w("lift_r", 0); g: page.w("lift_g", 0); b: page.w("lift_b", 0)
-                        onMoved: function(r, g, b) { editor.setWheel(page.sel.id, "lift", r, g, b) }
-                    }
-                    ColorWheel {
-                        Layout.fillWidth: true
-                        label: qsTr("Gamma")
-                        neutral: 1
-                        range: 0.5
-                        r: page.w("gamma_r", 1); g: page.w("gamma_g", 1); b: page.w("gamma_b", 1)
-                        onMoved: function(r, g, b) { editor.setWheel(page.sel.id, "gamma", r, g, b) }
-                    }
-                    ColorWheel {
-                        Layout.fillWidth: true
-                        label: qsTr("Gain")
-                        neutral: 1
-                        range: 0.5
-                        r: page.w("gain_r", 1); g: page.w("gain_g", 1); b: page.w("gain_b", 1)
-                        onMoved: function(r, g, b) { editor.setWheel(page.sel.id, "gain", r, g, b) }
+        SplitView.minimumHeight: 250
+        title: page.hasClip ? (page.sel.name || qsTr("Clip")) : qsTr("Select a clip to grade")
+        leading: [
+            Row {
+                spacing: 2
+                Layout.leftMargin: 10
+                Repeater {
+                    model: [qsTr("Color Wheels"), qsTr("Curves"), qsTr("Qualifier"), qsTr("Primaries & LUT")]
+                    StudioButton {
+                        text: modelData
+                        size: 24
+                        fontSize: StudioTheme.fontSmall
+                        checkable: true
+                        checked: page.tab === index
+                        onClicked: page.tab = index
                     }
                 }
             }
+        ]
+        actions: [
+            StudioButton { id: compareButton; iconName: "compare"; text: qsTr("Before / after"); size: 24; fontSize: StudioTheme.fontSmall; checkable: true },
+            StudioButton { text: qsTr("Copy grade"); size: 24; fontSize: StudioTheme.fontSmall; enabled: page.hasClip; onClicked: editor.copyGrade(page.sel.id) },
+            StudioButton { text: qsTr("Paste grade"); size: 24; fontSize: StudioTheme.fontSmall; enabled: editor.hasGrade && editor.selection.length > 0; onClicked: editor.pasteGrade() },
+            StudioButton { iconName: "reset"; tip: qsTr("Reset grade"); size: 24; enabled: page.hasClip; onClicked: editor.resetGrade(page.sel.id) }
+        ]
 
-            // Curves
-            LingmoUI.Card {
-                Layout.fillHeight: true
-                Layout.preferredWidth: 300
-                color: LingmoUI.Theme.backgroundColor
+        StackLayout {
+            anchors.fill: parent
+            anchors.margins: 8
+            currentIndex: page.tab
+            enabled: page.hasClip
+
+            // wheels
+            RowLayout {
+                spacing: 18
+                Item { Layout.fillWidth: true; Layout.maximumWidth: 40 }
+                ColorWheel {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.fillHeight: true
+                    label: qsTr("Lift")
+                    neutral: 0
+                    range: 0.25
+                    r: page.w("lift_r", 0); g: page.w("lift_g", 0); b: page.w("lift_b", 0)
+                    onMoved: function(r, g, b) { editor.setWheel(page.sel.id, "lift", r, g, b) }
+                }
+                ColorWheel {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.fillHeight: true
+                    label: qsTr("Gamma")
+                    neutral: 1
+                    range: 0.5
+                    r: page.w("gamma_r", 1); g: page.w("gamma_g", 1); b: page.w("gamma_b", 1)
+                    onMoved: function(r, g, b) { editor.setWheel(page.sel.id, "gamma", r, g, b) }
+                }
+                ColorWheel {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.fillHeight: true
+                    label: qsTr("Gain")
+                    neutral: 1
+                    range: 0.5
+                    r: page.w("gain_r", 1); g: page.w("gain_g", 1); b: page.w("gain_b", 1)
+                    onMoved: function(r, g, b) { editor.setWheel(page.sel.id, "gain", r, g, b) }
+                }
+                ColorWheel {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.fillHeight: true
+                    label: qsTr("Offset")
+                    neutral: 0
+                    range: 0.2
+                    r: page.off("r"); g: page.off("g"); b: page.off("b")
+                    onMoved: function(r, g, b) { editor.setWheelOffset(page.sel.id, r, g, b) }
+                }
+                Item { Layout.fillWidth: true; Layout.maximumWidth: 40 }
+            }
+
+            // curves
+            RowLayout {
+                id: curvesRow
+                spacing: 12
                 ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: LingmoUI.Units.smallSpacing
-                    LingmoUI.SegmentedControl {
-                        id: channel
-                        Layout.alignment: Qt.AlignHCenter
-                        model: ["Y", "R", "G", "B"]
-                        readonly property var keys: ["master", "red", "green", "blue"]
+                    Layout.preferredWidth: 120
+                    Layout.fillHeight: true
+                    spacing: 4
+                    Repeater {
+                        model: [{ k: "master", t: qsTr("Luma"), c: StudioTheme.text }, { k: "red", t: qsTr("Red"), c: "#FF6B6B" },
+                                { k: "green", t: qsTr("Green"), c: "#5FD97A" }, { k: "blue", t: qsTr("Blue"), c: "#6B9BFF" }]
+                        StudioButton {
+                            Layout.fillWidth: true
+                            text: modelData.t
+                            checkable: true
+                            checked: curves.channel === modelData.k
+                            checkedColor: modelData.c
+                            onClicked: curves.channel = modelData.k
+                        }
                     }
+                    Item { Layout.fillHeight: true }
+                }
+                Rectangle {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 240
+                    Layout.maximumWidth: 560
+                    radius: StudioTheme.radius
+                    color: StudioTheme.well
                     CurvesEditor {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        channel: channel.keys[channel.currentIndex]
-                        points: page.curvesFx ? page.curvesFx.params[channel.keys[channel.currentIndex]] : "0/0 1/1"
+                        id: curves
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        channel: "master"
+                        points: page.curvesFx ? page.curvesFx.params[channel] : "0/0 1/1"
                         onEdited: function(points) {
                             if (!page.curvesFx)
                                 editor.addEffect(page.sel.id, "curves")
                             const fx = page.effectOf("curves")
                             if (fx)
-                                editor.setEffectParam(page.sel.id, fx.index, channel.keys[channel.currentIndex], points)
+                                editor.setEffectParam(page.sel.id, fx.index, curves.channel, points)
                         }
                     }
                 }
+                Item { Layout.fillWidth: true }
             }
 
-            // Everything else of the grade (primaries, HSL qualifier, LUT)
-            LingmoUI.Card {
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                color: LingmoUI.Theme.backgroundColor
+            // qualifier
+            RowLayout {
+                spacing: 12
                 ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: LingmoUI.Units.smallSpacing
-                    RowLayout {
-                        LingmoUI.ActionButton { text: qsTr("Primaries"); enabled: !page.effectOf("color"); onClicked: editor.addEffect(page.sel.id, "color") }
-                        LingmoUI.ActionButton { text: qsTr("HSL qualifier"); onClicked: editor.addEffect(page.sel.id, "hsl") }
-                        LingmoUI.ActionButton { text: qsTr("LUT"); onClicked: editor.addEffect(page.sel.id, "lut") }
-                    }
-                    Inspector {
+                    Layout.preferredWidth: 260
+                    Layout.fillHeight: true
+                    spacing: 6
+                    Text {
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        categories: ["color"]
-                        showClipSection: false
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Pick a range of hues and change only those: shift the hue, saturate or lighten them.")
+                        color: StudioTheme.textSecondary
+                        font.family: StudioTheme.font
+                        font.pixelSize: StudioTheme.fontSmall
                     }
+                    StudioButton {
+                        text: qsTr("Add HSL qualifier")
+                        iconName: "plus"
+                        flat: false
+                        visible: !page.effectOf("hsl")
+                        onClicked: editor.addEffect(page.sel.id, "hsl")
+                    }
+                    Item { Layout.fillHeight: true }
+                }
+                Inspector {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    categories: ["color"]
+                    types: ["hsl"]
+                    showClipSection: false
+                    showEffectsHeader: false
+                }
+            }
+
+            // primaries and LUT
+            RowLayout {
+                spacing: 12
+                ColumnLayout {
+                    Layout.preferredWidth: 260
+                    Layout.fillHeight: true
+                    spacing: 6
+                    StudioButton { text: qsTr("Primaries"); iconName: "plus"; flat: false; enabled: !page.effectOf("color"); onClicked: editor.addEffect(page.sel.id, "color") }
+                    StudioButton { text: qsTr("LUT"); iconName: "plus"; flat: false; onClicked: editor.addEffect(page.sel.id, "lut") }
+                    Item { Layout.fillHeight: true }
+                }
+                Inspector {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    categories: ["color"]
+                    types: ["color", "lut", "wheels", "curves"]
+                    showClipSection: false
+                    showEffectsHeader: false
                 }
             }
         }

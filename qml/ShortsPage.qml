@@ -61,10 +61,10 @@ Item {
 
     RowLayout {
         anchors.fill: parent
-        spacing: LingmoUI.Units.smallSpacing
+        spacing: StudioTheme.gap
 
         // ------------------------------------------------ setup
-        LingmoUI.Card {
+        StudioPanel {
             Layout.preferredWidth: 380
             Layout.fillHeight: true
 
@@ -241,7 +241,7 @@ Item {
         }
 
         // ------------------------------------------------ results
-        LingmoUI.Card {
+        StudioPanel {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
@@ -340,20 +340,20 @@ Item {
         }
 
         // ------------------------------------------------ preview (vertical, like the result)
-        LingmoUI.Card {
+        StudioPanel {
             Layout.preferredWidth: 300
             Layout.fillHeight: true
             visible: page.width > 1180
+            title: qsTr("Preview")
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: LingmoUI.Units.largeSpacing
                 spacing: LingmoUI.Units.smallSpacing
-                Label { text: qsTr("Preview"); font.pointSize: LingmoUI.Units.fontBody; font.bold: true; color: LingmoUI.Theme.textColor }
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: width * 16 / 9
-                    radius: LingmoUI.Theme.smallRadius
-                    color: Qt.rgba(0, 0, 0, 1) // video surround is always black
+                    radius: StudioTheme.smallRadius
+                    color: StudioTheme.well
                     clip: true
                     VideoView {
                         anchors.fill: parent

@@ -187,6 +187,7 @@ public:
 
     void setStatus(const QString &s);
     void setBusy(const QString &task);
+    void writePoster();
 
     // -------- project
     Q_INVOKABLE void newProject(const QString &preset = QStringLiteral("1080p30"));
@@ -195,6 +196,9 @@ public:
     Q_INVOKABLE bool openPath(const QString &path);
     Q_INVOKABLE bool saveProject();
     Q_INVOKABLE bool saveProjectAs(const QUrl &url);
+    // Start screen card of a project file: name, folder, modified, poster
+    // (a frame saved with the project), exists
+    Q_INVOKABLE QVariantMap projectInfo(const QString &path) const;
     Q_INVOKABLE void recover();
     Q_INVOKABLE void discardRecovery();
     Q_INVOKABLE void setProjectSettings(int width, int height, int fpsNum, int fpsDen);
@@ -269,6 +273,9 @@ public:
     Q_INVOKABLE void pasteGrade();
     Q_INVOKABLE void resetGrade(const QString &clipId);
     Q_INVOKABLE void setWheel(const QString &clipId, const QString &range, double r, double g, double b);
+    // Offset wheel: moves black and white by the same amount per channel by
+    // re-balancing lift and gain (offset = gain × lift, slope kept)
+    Q_INVOKABLE void setWheelOffset(const QString &clipId, double r, double g, double b);
     Q_INVOKABLE QImage beforeAfterFrame(bool before, int width) const;
 
     // -------- audio page

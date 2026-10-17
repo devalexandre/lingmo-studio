@@ -12,11 +12,38 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import LingmoUI.CompatibleModule 3.0 as LingmoUI
 
-// Imported media: thumbnails, duration and codecs, proxies. Click shows the
-// clip in the source monitor; drag it onto a track; double-click appends it.
-Item {
+// Media Pool: imported media as thumbnails (grid) or rows (list), with
+// spoken-word search. Click shows the clip in the source viewer; drag it
+// onto a track; double-click appends it.
+StudioPanel {
     id: bin
+
+    property bool listMode: false
+    property bool searching: false
+    property int thumbWidth: 150
     signal importRequested()
+    signal chosen(var info)
+
+    title: qsTr("Media Pool")
+    subtitle: editor.mediaBin.count > 0 ? qsTr("%n item(s)", "", editor.mediaBin.count) : ""
+
+    actions: [
+        LingmoUI.Spinner {
+            running: editor.mediaBin.importing > 0
+            visible: running
+            size: 14
+        },
+        StudioButton { iconName: "search"; tip: qsTr("Find a moment by its words"); checkable: true; checked: bin.searching; onClicked: bin.searching = !bin.searching },
+        StudioButton { iconName: "grid"; tip: qsTr("Thumbnails"); checkable: true; checked: !bin.listMode; onClicked: bin.listMode = false },
+        StudioButton { iconName: "list"; tip: qsTr("List"); checkable: true; checked: bin.listMode; onClicked: bin.listMode = true },
+        StudioButton { iconName: "import"; tip: qsTr("Import media"); shortcut: "Ctrl+I"; onClicked: bin.importRequested() }
+    ]
+
+    function choose(cell) {
+        editor.mediaBin.openInSource(cell.mediaId)
+        bin.chosen({ mediaId: cell.mediaId, name: cell.name, kind: cell.kind, durationText: cell.durationText,
+                     info: cell.info, proxyState: cell.proxyState, used: cell.used })
+    }
 
     Menu {
         id: itemMenu
@@ -25,6 +52,7 @@ Item {
         property bool video: false
         MenuItem { text: qsTr("Append to timeline"); onTriggered: editor.appendMedia(itemMenu.mediaId) }
         MenuItem { text: qsTr("Open in source monitor"); onTriggered: editor.mediaBin.openInSource(itemMenu.mediaId) }
+        MenuItem { text: qsTr("Generate cuts for Shorts/Reels…"); enabled: itemMenu.video; onTriggered: root.openShorts(itemMenu.mediaId) }
         MenuSeparator {}
         MenuItem {
             text: itemMenu.proxyState === "ready" ? qsTr("Delete proxy") : itemMenu.proxyState === "running" ? qsTr("Cancel proxy") : qsTr("Make proxy")
@@ -44,28 +72,13 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: LingmoUI.Units.smallSpacing
+        anchors.margins: 6
+        spacing: 6
 
-        RowLayout {
+        SearchPanel {
+            visible: bin.searching
             Layout.fillWidth: true
-            Layout.leftMargin: LingmoUI.Units.smallSpacing
-            Layout.rightMargin: LingmoUI.Units.smallSpacing
-            LingmoUI.ActionButton {
-                text: qsTr("Import")
-                iconName: "document-import"
-                onClicked: bin.importRequested()
-            }
-            Item { Layout.fillWidth: true }
-            Label {
-                text: qsTr("%n item(s)", "", editor.mediaBin.count)
-                color: LingmoUI.Theme.secondaryTextColor
-                font.pointSize: LingmoUI.Units.fontCaption
-            }
-            LingmoUI.Spinner {
-                running: editor.mediaBin.importing > 0
-                visible: running
-                size: LingmoUI.Units.iconSizes.small
-            }
+            Layout.preferredHeight: parent.height * 0.5
         }
 
         GridView {
@@ -73,8 +86,9 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            cellWidth: Math.max(120, width / Math.max(1, Math.floor(width / 140)))
-            cellHeight: cellWidth * 0.56 + 44
+            readonly property int columns: bin.listMode ? 1 : Math.max(1, Math.floor(width / bin.thumbWidth))
+            cellWidth: width / columns
+            cellHeight: bin.listMode ? 44 : cellWidth * 9 / 16 + 34
             model: editor.mediaBin
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar {}
@@ -90,92 +104,136 @@ Item {
                 required property string proxyState
                 required property real proxyProgress
                 required property bool used
+                readonly property bool current: editor.player.sourceMediaId === cell.mediaId
                 width: grid.cellWidth
                 height: grid.cellHeight
 
-                LingmoUI.Card {
+                Rectangle {
                     id: card
                     anchors.fill: parent
                     anchors.margins: 3
-                    hoverEnabled: true
-                    highlighted: editor.player.sourceMediaId === cell.mediaId && editor.player.mode === "source"
-                    radius: LingmoUI.Theme.smallRadius
+                    radius: StudioTheme.radius - 2
+                    color: dragArea.containsMouse ? StudioTheme.raisedHover : (cell.current ? StudioTheme.raised : "transparent")
+                    border.width: cell.current ? 1 : 0
+                    border.color: StudioTheme.accent
+                    Behavior on color { ColorAnimation { duration: StudioTheme.fast } }
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 4
-                        spacing: 2
-
+                    // thumbnail
+                    Rectangle {
+                        id: thumbBox
+                        x: 4
+                        y: 4
+                        width: bin.listMode ? 56 : parent.width - 8
+                        height: bin.listMode ? parent.height - 8 : width * 9 / 16
+                        radius: StudioTheme.smallRadius
+                        color: StudioTheme.well
+                        clip: true
+                        Image {
+                            anchors.fill: parent
+                            visible: cell.kind !== "audio"
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            sourceSize.width: 256
+                            source: cell.kind !== "audio" ? "image://thumb/" + cell.mediaId + "/" + (cell.kind === "image" ? 0 : 30) : ""
+                        }
                         Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            radius: LingmoUI.Theme.tinyRadius
-                            color: LingmoUI.Theme.alternateBackgroundColor
-                            clip: true
-                            Image {
-                                id: thumb
-                                anchors.fill: parent
-                                visible: cell.kind !== "audio"
-                                fillMode: Image.PreserveAspectFit
-                                asynchronous: true
-                                sourceSize.width: 256
-                                source: cell.kind !== "audio" ? "image://thumb/" + cell.mediaId + "/" + (cell.kind === "image" ? 0 : 30) : ""
-                            }
+                            anchors.fill: parent
+                            visible: cell.kind === "audio"
+                            color: StudioTheme.audioClip
                             Image {
                                 anchors.fill: parent
-                                anchors.margins: 6
-                                visible: cell.kind === "audio"
+                                anchors.margins: 4
                                 asynchronous: true
                                 sourceSize: Qt.size(240, 60)
-                                source: cell.kind === "audio" ? "image://wave/" + cell.mediaId + "/0/100000000/" + String(LingmoUI.Theme.greenColor).substring(1, 7) : ""
-                            }
-                            Label {
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                anchors.margins: 3
-                                visible: cell.durationText.length > 0
-                                text: cell.durationText
-                                color: LingmoUI.Theme.textColor
-                                font.pointSize: LingmoUI.Units.fontCaption
-                                padding: 2
-                                background: Rectangle { color: LingmoUI.Theme.backgroundColor; opacity: 0.8; radius: 3 }
-                            }
-                            LingmoUI.Badge {
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.margins: 3
-                                text: cell.proxyState === "ready" ? qsTr("proxy") : cell.proxyState === "running" ? Math.round(cell.proxyProgress * 100) + "%" : ""
-                                tone: LingmoUI.Theme.orangeColor
-                            }
-                            LingmoUI.Badge {
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                anchors.margins: 3
-                                dot: true
-                                text: cell.used ? "1" : ""
-                                tone: LingmoUI.Theme.greenColor
+                                source: cell.kind === "audio" ? "image://wave/" + cell.mediaId + "/0/100000000/" + String(StudioTheme.audioWave).substring(1, 7) : ""
                             }
                         }
-                        Label {
+                        // duration
+                        Rectangle {
+                            visible: !bin.listMode && cell.durationText.length > 0
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            anchors.margins: 4
+                            width: durText.implicitWidth + 8
+                            height: 16
+                            radius: 3
+                            color: StudioTheme.alpha(StudioTheme.window, 0.82)
+                            Text {
+                                id: durText
+                                anchors.centerIn: parent
+                                text: cell.durationText
+                                color: StudioTheme.text
+                                font.family: StudioTheme.font
+                                font.pixelSize: StudioTheme.fontTiny
+                                font.features: { "tnum": 1 }
+                            }
+                        }
+                        // proxy
+                        Rectangle {
+                            visible: cell.proxyState === "ready" || cell.proxyState === "running"
+                            anchors.left: parent.left
+                            anchors.top: parent.top
+                            anchors.margins: 4
+                            width: proxyText.implicitWidth + 8
+                            height: 15
+                            radius: 3
+                            color: StudioTheme.warning
+                            Text {
+                                id: proxyText
+                                anchors.centerIn: parent
+                                text: cell.proxyState === "ready" ? qsTr("proxy") : Math.round(cell.proxyProgress * 100) + "%"
+                                color: "#16171A"
+                                font.family: StudioTheme.font
+                                font.pixelSize: StudioTheme.fontTiny
+                                font.weight: Font.DemiBold
+                            }
+                        }
+                    }
+                    // in use on the timeline
+                    Rectangle {
+                        visible: cell.used
+                        x: thumbBox.x + thumbBox.width - 10
+                        y: thumbBox.y + 4
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: StudioTheme.success
+                    }
+                    ColumnLayout {
+                        anchors.left: bin.listMode ? thumbBox.right : parent.left
+                        anchors.right: parent.right
+                        anchors.top: bin.listMode ? parent.top : thumbBox.bottom
+                        anchors.bottom: parent.bottom
+                        anchors.leftMargin: bin.listMode ? 8 : 6
+                        anchors.rightMargin: 6
+                        anchors.topMargin: bin.listMode ? 5 : 3
+                        spacing: 0
+                        Text {
                             Layout.fillWidth: true
                             text: cell.name
                             elide: Text.ElideMiddle
-                            font.pointSize: LingmoUI.Units.fontCaption
-                            color: LingmoUI.Theme.textColor
+                            color: cell.current ? StudioTheme.text : StudioTheme.text
+                            font.family: StudioTheme.font
+                            font.pixelSize: StudioTheme.fontSmall
+                            font.weight: cell.current ? Font.DemiBold : Font.Normal
                         }
-                        Label {
+                        Text {
                             Layout.fillWidth: true
-                            text: cell.info
+                            visible: bin.listMode || grid.cellWidth > 170
+                            text: bin.listMode ? cell.durationText + " · " + cell.info : cell.info
                             elide: Text.ElideRight
-                            font.pointSize: LingmoUI.Units.fontCaption - 1
-                            color: LingmoUI.Theme.secondaryTextColor
+                            color: StudioTheme.textSecondary
+                            font.family: StudioTheme.font
+                            font.pixelSize: StudioTheme.fontTiny
                         }
+                        Item { Layout.fillHeight: true }
                     }
                 }
 
                 MouseArea {
                     id: dragArea
                     anchors.fill: parent
+                    hoverEnabled: true
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     drag.target: dragProxy
                     onPressed: function(m) {
@@ -186,8 +244,11 @@ Item {
                             itemMenu.popup()
                         }
                     }
-                    onClicked: function(m) { if (m.button === Qt.LeftButton) editor.mediaBin.openInSource(cell.mediaId) }
+                    onClicked: function(m) { if (m.button === Qt.LeftButton) bin.choose(cell) }
                     onDoubleClicked: editor.appendMedia(cell.mediaId)
+                    ToolTip.visible: containsMouse && !pressed
+                    ToolTip.text: cell.name + "\n" + cell.info
+                    ToolTip.delay: 900
                 }
                 Item {
                     id: dragProxy
@@ -203,15 +264,45 @@ Item {
         }
     }
 
-    LingmoUI.EmptyState {
-        anchors.centerIn: parent
-        width: parent.width - LingmoUI.Units.largeSpacing * 2
+    // empty: a drop zone
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: 10
         visible: editor.mediaBin.count === 0 && editor.mediaBin.importing === 0
-        iconName: "folder-videos"
-        iconSize: LingmoUI.Units.iconSizes.large
-        title: qsTr("No media yet")
-        text: qsTr("Drop videos, music and pictures here, or import them.")
-        actionText: qsTr("Import media")
-        onActionTriggered: bin.importRequested()
+        radius: StudioTheme.radius
+        color: "transparent"
+        border.width: 1
+        border.color: StudioTheme.border
+        ColumnLayout {
+            anchors.centerIn: parent
+            width: parent.width - 32
+            spacing: 8
+            StudioIcon { Layout.alignment: Qt.AlignHCenter; name: "import"; size: 32; color: StudioTheme.textSecondary }
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: qsTr("No media yet")
+                color: StudioTheme.text
+                font.family: StudioTheme.font
+                font.pixelSize: StudioTheme.fontLarge
+                font.weight: Font.DemiBold
+            }
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                text: qsTr("Drop videos, music and pictures here, or import them.")
+                color: StudioTheme.textSecondary
+                font.family: StudioTheme.font
+                font.pixelSize: StudioTheme.fontBody
+            }
+            StudioButton {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Import media")
+                iconName: "import"
+                flat: false
+                onClicked: bin.importRequested()
+            }
+        }
     }
 }

@@ -1,36 +1,151 @@
 <RCC>
     <qresource prefix="/">
         <file>qml/Main.qml</file>
+        <file>qml/qmldir</file>
         <file>qml/AudioPage.qml</file>
+        <file>qml/BigAction.qml</file>
+        <file>qml/CandidateCard.qml</file>
+        <file>qml/CaptionInspector.qml</file>
+        <file>qml/CaptionStyleGallery.qml</file>
+        <file>qml/CaptionsDialog.qml</file>
         <file>qml/ClipItem.qml</file>
+        <file>qml/ClipStrip.qml</file>
         <file>qml/ColorPage.qml</file>
         <file>qml/ColorWheel.qml</file>
         <file>qml/CurvesEditor.qml</file>
+        <file>qml/CutPage.qml</file>
         <file>qml/DeliverPage.qml</file>
+        <file>qml/EditIndex.qml</file>
         <file>qml/EditPage.qml</file>
         <file>qml/EffectsPage.qml</file>
+        <file>qml/Fader.qml</file>
         <file>qml/HistoryPanel.qml</file>
         <file>qml/Inspector.qml</file>
+        <file>qml/InspectorSection.qml</file>
         <file>qml/KeyframeEditor.qml</file>
+        <file>qml/Knob.qml</file>
         <file>qml/LevelMeter.qml</file>
         <file>qml/LibraryPanel.qml</file>
         <file>qml/MediaBinPanel.qml</file>
+        <file>qml/MediaPage.qml</file>
+        <file>qml/Mixer.qml</file>
         <file>qml/MonitorPanel.qml</file>
+        <file>qml/NodeGraph.qml</file>
+        <file>qml/PageBar.qml</file>
+        <file>qml/PanelHandle.qml</file>
         <file>qml/ParamEditor.qml</file>
         <file>qml/ProjectSettingsDialog.qml</file>
         <file>qml/ScopeView.qml</file>
         <file>qml/SearchPanel.qml</file>
+        <file>qml/ShortsPage.qml</file>
         <file>qml/StartPage.qml</file>
+        <file>qml/StudioButton.qml</file>
+        <file>qml/StudioIcon.qml</file>
         <file>qml/StudioPanel.qml</file>
+        <file>qml/StudioTheme.qml</file>
+        <file>qml/TimelineOverview.qml</file>
         <file>qml/TimelinePanel.qml</file>
         <file>qml/TrackHeader.qml</file>
-        <file>qml/ShortsPage.qml</file>
-        <file>qml/CandidateCard.qml</file>
-        <file>qml/CaptionsDialog.qml</file>
-        <file>qml/CaptionStyleGallery.qml</file>
-        <file>qml/CaptionInspector.qml</file>
         <file>qml/TranscriptionStatus.qml</file>
+        <file>qml/Viewer.qml</file>
         <file>data/platforms.json</file>
         <file>data/facetrack.py</file>
+        <file>data/lingmo-studio.svg</file>
+        <file>data/icons/add-track.svg</file>
+        <file>data/icons/append.svg</file>
+        <file>data/icons/captions.svg</file>
+        <file>data/icons/check.svg</file>
+        <file>data/icons/chevron-down.svg</file>
+        <file>data/icons/chevron-left.svg</file>
+        <file>data/icons/chevron-right.svg</file>
+        <file>data/icons/clear-marks.svg</file>
+        <file>data/icons/close.svg</file>
+        <file>data/icons/compare.svg</file>
+        <file>data/icons/dissolve.svg</file>
+        <file>data/icons/edit-index.svg</file>
+        <file>data/icons/edit-next.svg</file>
+        <file>data/icons/edit-prev.svg</file>
+        <file>data/icons/export.svg</file>
+        <file>data/icons/eye-off.svg</file>
+        <file>data/icons/eye.svg</file>
+        <file>data/icons/fast-forward.svg</file>
+        <file>data/icons/film.svg</file>
+        <file>data/icons/folder.svg</file>
+        <file>data/icons/frame-next.svg</file>
+        <file>data/icons/frame-prev.svg</file>
+        <file>data/icons/freeze.svg</file>
+        <file>data/icons/fx-library.svg</file>
+        <file>data/icons/go-end.svg</file>
+        <file>data/icons/go-start.svg</file>
+        <file>data/icons/grid.svg</file>
+        <file>data/icons/headphones.svg</file>
+        <file>data/icons/history.svg</file>
+        <file>data/icons/home.svg</file>
+        <file>data/icons/image.svg</file>
+        <file>data/icons/import.svg</file>
+        <file>data/icons/info.svg</file>
+        <file>data/icons/insert.svg</file>
+        <file>data/icons/inspector.svg</file>
+        <file>data/icons/keyframe-on.svg</file>
+        <file>data/icons/keyframe.svg</file>
+        <file>data/icons/link.svg</file>
+        <file>data/icons/list.svg</file>
+        <file>data/icons/lock.svg</file>
+        <file>data/icons/loop.svg</file>
+        <file>data/icons/mark-in.svg</file>
+        <file>data/icons/mark-out.svg</file>
+        <file>data/icons/marker.svg</file>
+        <file>data/icons/media-pool.svg</file>
+        <file>data/icons/menu.svg</file>
+        <file>data/icons/mic.svg</file>
+        <file>data/icons/mixer.svg</file>
+        <file>data/icons/more.svg</file>
+        <file>data/icons/music.svg</file>
+        <file>data/icons/overwrite.svg</file>
+        <file>data/icons/page-audio.svg</file>
+        <file>data/icons/page-color.svg</file>
+        <file>data/icons/page-cut.svg</file>
+        <file>data/icons/page-deliver.svg</file>
+        <file>data/icons/page-edit.svg</file>
+        <file>data/icons/page-effects.svg</file>
+        <file>data/icons/page-media.svg</file>
+        <file>data/icons/pause.svg</file>
+        <file>data/icons/phone.svg</file>
+        <file>data/icons/place-top.svg</file>
+        <file>data/icons/play-reverse.svg</file>
+        <file>data/icons/play.svg</file>
+        <file>data/icons/plus.svg</file>
+        <file>data/icons/project.svg</file>
+        <file>data/icons/record.svg</file>
+        <file>data/icons/redo.svg</file>
+        <file>data/icons/reset.svg</file>
+        <file>data/icons/rewind.svg</file>
+        <file>data/icons/ripple.svg</file>
+        <file>data/icons/save.svg</file>
+        <file>data/icons/scopes.svg</file>
+        <file>data/icons/search.svg</file>
+        <file>data/icons/settings.svg</file>
+        <file>data/icons/shorts.svg</file>
+        <file>data/icons/smart-trim.svg</file>
+        <file>data/icons/snap.svg</file>
+        <file>data/icons/speaker-off.svg</file>
+        <file>data/icons/speaker.svg</file>
+        <file>data/icons/split.svg</file>
+        <file>data/icons/square.svg</file>
+        <file>data/icons/stop.svg</file>
+        <file>data/icons/tool-blade.svg</file>
+        <file>data/icons/tool-roll.svg</file>
+        <file>data/icons/tool-select.svg</file>
+        <file>data/icons/tool-slide.svg</file>
+        <file>data/icons/tool-slip.svg</file>
+        <file>data/icons/tool-trim.svg</file>
+        <file>data/icons/trash.svg</file>
+        <file>data/icons/undo.svg</file>
+        <file>data/icons/unlock.svg</file>
+        <file>data/icons/volume.svg</file>
+        <file>data/icons/widescreen.svg</file>
+        <file>data/icons/zoom-fit.svg</file>
+        <file>data/icons/zoom-in.svg</file>
+        <file>data/icons/zoom-out.svg</file>
     </qresource>
 </RCC>

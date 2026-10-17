@@ -10,9 +10,9 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import LingmoUI.CompatibleModule 3.0 as LingmoUI
 
-// Name and switches of one track (model roles from TimelineModel).
+// Track header: a coloured tag with the track name (V1, A1, S1; double-click
+// to rename), then lock, visibility and mute/solo switches.
 Item {
     id: header
 
@@ -25,20 +25,29 @@ Item {
     required property bool solo
     property int trackIndex: 0
     property bool compact: false
+    property bool minimal: false
     signal contextMenuRequested()
+
+    readonly property color tagColor: kind === "audio" ? StudioTheme.trackAudio : kind === "subtitle" ? StudioTheme.trackCaption : StudioTheme.trackVideo
 
     Rectangle {
         anchors.fill: parent
-        anchors.rightMargin: 1
-        color: header.kind === "audio" ? Qt.rgba(LingmoUI.Theme.greenColor.r, LingmoUI.Theme.greenColor.g, LingmoUI.Theme.greenColor.b, 0.08)
-             : header.kind === "subtitle" ? Qt.rgba(LingmoUI.Theme.pinkColor.r, LingmoUI.Theme.pinkColor.g, LingmoUI.Theme.pinkColor.b, 0.08)
-             : Qt.rgba(LingmoUI.Theme.blueColor.r, LingmoUI.Theme.blueColor.g, LingmoUI.Theme.blueColor.b, 0.08)
+        color: header.index % 2 ? StudioTheme.laneOdd : StudioTheme.laneEven
     }
     Rectangle {
         anchors.bottom: parent.bottom
         width: parent.width
         height: 1
-        color: LingmoUI.Theme.dividerColor
+        color: StudioTheme.divider
+    }
+    // coloured track tag
+    Rectangle {
+        x: 0
+        y: 1
+        width: 3
+        height: parent.height - 3
+        color: header.tagColor
+        opacity: header.hidden || header.muted ? 0.4 : 1
     }
     MouseArea {
         anchors.fill: parent
@@ -48,57 +57,94 @@ Item {
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: LingmoUI.Units.smallSpacing
-        anchors.rightMargin: 2
-        spacing: 0
+        anchors.leftMargin: 8
+        anchors.rightMargin: 4
+        spacing: 2
 
-        TextField {
-            id: nameField
-            Layout.fillWidth: true
-            Layout.minimumWidth: 28
-            text: header.name
-            font.pointSize: LingmoUI.Units.fontCaption
-            font.bold: true
-            readOnly: !activeFocus
-            background: null
-            onEditingFinished: { editor.setTrackProperty(header.trackIndex, "name", text); focus = false }
+        // name chip
+        Rectangle {
+            Layout.preferredWidth: Math.max(28, nameField.implicitWidth + 10)
+            Layout.maximumWidth: header.minimal ? 34 : 64
+            Layout.preferredHeight: Math.min(18, header.height - 4)
+            radius: 3
+            color: StudioTheme.alpha(header.tagColor, 0.22)
+            TextInput {
+                id: nameField
+                anchors.fill: parent
+                anchors.leftMargin: 5
+                anchors.rightMargin: 5
+                verticalAlignment: TextInput.AlignVCenter
+                text: header.name
+                color: Qt.lighter(header.tagColor, 1.35)
+                font.family: StudioTheme.font
+                font.pixelSize: header.minimal ? StudioTheme.fontTiny : StudioTheme.fontSmall
+                font.weight: Font.DemiBold
+                readOnly: !activeFocus
+                clip: true
+                selectByMouse: true
+                onEditingFinished: { editor.setTrackProperty(header.trackIndex, "name", text); focus = false }
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: !nameField.activeFocus
+                    onDoubleClicked: { nameField.forceActiveFocus(); nameField.selectAll() }
+                }
+                ToolTip.visible: nameMouse.hovered && !nameField.activeFocus
+                ToolTip.text: qsTr("Double-click to rename")
+                ToolTip.delay: 800
+                HoverHandler { id: nameMouse }
+            }
         }
-        LingmoUI.IconButton {
-            visible: header.kind !== "audio"
-            iconName: header.hidden ? "view-hidden" : "view-visible"
-            tipText: header.hidden ? qsTr("Show track") : qsTr("Hide track")
-            size: 22
-            iconSize: 14
-            onClicked: editor.setTrackProperty(header.trackIndex, "hidden", !header.hidden)
-        }
-        LingmoUI.IconButton {
-            visible: header.kind !== "subtitle"
-            iconName: header.muted ? "audio-volume-muted" : "audio-volume-high"
-            tipText: header.muted ? qsTr("Unmute") : qsTr("Mute")
-            size: 22
-            iconSize: 14
-            checkable: true
-            checked: header.muted
-            onClicked: editor.setTrackProperty(header.trackIndex, "muted", !header.muted)
-        }
-        LingmoUI.IconButton {
-            visible: header.kind === "audio" && !header.compact
-            iconName: "audio-headphones"
-            tipText: qsTr("Solo")
-            size: 22
-            iconSize: 14
-            checkable: true
-            checked: header.solo
-            onClicked: editor.setTrackProperty(header.trackIndex, "solo", !header.solo)
-        }
-        LingmoUI.IconButton {
-            iconName: header.locked ? "object-locked" : "object-unlocked"
-            tipText: header.locked ? qsTr("Unlock") : qsTr("Lock")
-            size: 22
-            iconSize: 14
-            checkable: true
-            checked: header.locked
-            onClicked: editor.setTrackProperty(header.trackIndex, "locked", !header.locked)
+        Item { Layout.fillWidth: true }
+
+        Row {
+            visible: !header.minimal && header.height >= 22
+            spacing: 1
+            StudioButton {
+                iconName: header.locked ? "lock" : "unlock"
+                size: 22
+                iconSize: 13
+                tip: header.locked ? qsTr("Unlock track") : qsTr("Lock track")
+                checkable: true
+                checked: header.locked
+                checkedColor: StudioTheme.warning
+                onClicked: editor.setTrackProperty(header.trackIndex, "locked", !header.locked)
+            }
+            StudioButton {
+                visible: header.kind !== "audio"
+                iconName: header.hidden ? "eye-off" : "eye"
+                size: 22
+                iconSize: 13
+                tip: header.hidden ? qsTr("Show track") : qsTr("Hide track")
+                onClicked: editor.setTrackProperty(header.trackIndex, "hidden", !header.hidden)
+            }
+            StudioButton {
+                visible: header.kind === "audio"
+                text: "S"
+                size: 22
+                width: 22
+                fontSize: StudioTheme.fontSmall
+                bold: true
+                tip: qsTr("Solo")
+                checkable: true
+                checked: header.solo
+                checkedStyle: "fill"
+                checkedColor: StudioTheme.solo
+                onClicked: editor.setTrackProperty(header.trackIndex, "solo", !header.solo)
+            }
+            StudioButton {
+                visible: header.kind !== "subtitle"
+                text: "M"
+                size: 22
+                width: 22
+                fontSize: StudioTheme.fontSmall
+                bold: true
+                tip: header.muted ? qsTr("Unmute") : qsTr("Mute")
+                checkable: true
+                checked: header.muted
+                checkedStyle: "fill"
+                checkedColor: StudioTheme.mute
+                onClicked: editor.setTrackProperty(header.trackIndex, "muted", !header.muted)
+            }
         }
     }
 }

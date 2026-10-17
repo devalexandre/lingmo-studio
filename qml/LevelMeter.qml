@@ -23,8 +23,8 @@ Row {
             id: bar
             width: (meter.width - meter.spacing) / 2
             height: meter.height
-            radius: 2
-            color: LingmoUI.Theme.alternateBackgroundColor
+            radius: 1.5
+            color: StudioTheme.well
             property real level: Math.max(0, Math.min(1, modelData))
             property real peak: 0
             onLevelChanged: if (level > peak) peak = level
@@ -39,7 +39,7 @@ Row {
                 width: parent.width
                 height: parent.height * bar.level
                 radius: 2
-                color: bar.level > 0.9 ? LingmoUI.Theme.redColor : bar.level > 0.75 ? LingmoUI.Theme.orangeColor : LingmoUI.Theme.greenColor
+                color: bar.level > 0.9 ? StudioTheme.danger : bar.level > 0.75 ? StudioTheme.solo : StudioTheme.success
                 Behavior on height { NumberAnimation { duration: LingmoUI.Units.veryShortDuration } }
             }
             Rectangle {
@@ -47,7 +47,7 @@ Row {
                 height: 2
                 y: parent.height * (1 - bar.peak)
                 visible: bar.peak > 0.01
-                color: LingmoUI.Theme.textColor
+                color: StudioTheme.text
             }
         }
     }

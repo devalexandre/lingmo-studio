@@ -10,78 +10,121 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
-import LingmoUI.CompatibleModule 3.0 as LingmoUI
 
-// Edit page: media/library | monitor | inspector/history over the timeline.
-SplitView {
+// Edit page: panel toggles on top; Media Pool / Effects Library / Edit
+// Index on the left, source and timeline viewers side by side, Inspector on
+// the right; the timeline across the bottom with an optional mixer.
+ColumnLayout {
     id: page
-    orientation: Qt.Vertical
+    spacing: StudioTheme.gap
 
-    FileDialog {
-        id: importDialog
-        title: qsTr("Import media")
-        fileMode: FileDialog.OpenFiles
-        nameFilters: editor.mediaNameFilters()
-        onAccepted: editor.importUrls(selectedFiles)
+    property bool showPool: true
+    property bool showFx: false
+    property bool showIndex: false
+    property bool showInspector: true
+    property bool showMixer: false
+
+    // ---------------------------------------------------- toggle rows
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 28
+        spacing: 2
+        StudioButton { iconName: "media-pool"; text: qsTr("Media Pool"); size: 26; fontSize: StudioTheme.fontSmall; checkable: true; checked: page.showPool; onClicked: page.showPool = !page.showPool }
+        StudioButton { iconName: "fx-library"; text: qsTr("Effects Library"); size: 26; fontSize: StudioTheme.fontSmall; checkable: true; checked: page.showFx; onClicked: page.showFx = !page.showFx }
+        StudioButton { iconName: "edit-index"; text: qsTr("Edit Index"); size: 26; fontSize: StudioTheme.fontSmall; checkable: true; checked: page.showIndex; onClicked: page.showIndex = !page.showIndex }
+        Item { Layout.fillWidth: true }
+        StudioButton { iconName: "mixer"; text: qsTr("Mixer"); size: 26; fontSize: StudioTheme.fontSmall; checkable: true; checked: page.showMixer; onClicked: page.showMixer = !page.showMixer }
+        StudioButton { iconName: "inspector"; text: qsTr("Inspector"); size: 26; fontSize: StudioTheme.fontSmall; checkable: true; checked: page.showInspector; onClicked: page.showInspector = !page.showInspector }
     }
 
     SplitView {
-        SplitView.fillHeight: true
-        SplitView.minimumHeight: 260
-        orientation: Qt.Horizontal
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        orientation: Qt.Vertical
+        handle: PanelHandle { }
 
-        StudioPanel {
-            id: left
-            SplitView.preferredWidth: 340
-            SplitView.minimumWidth: 220
-            property int tab: 0
-            actions: [
-                LingmoUI.SegmentedControl {
-                    model: [qsTr("Media"), qsTr("Library"), qsTr("Search")]
-                    currentIndex: left.tab
-                    onActivated: function(i) { left.tab = i }
+        SplitView {
+            SplitView.fillHeight: true
+            SplitView.minimumHeight: 260
+            orientation: Qt.Horizontal
+            handle: PanelHandle { }
+
+            MediaBinPanel {
+                visible: page.showPool
+                SplitView.preferredWidth: 330
+                SplitView.minimumWidth: 220
+                onImportRequested: root.importMedia()
+            }
+            StudioPanel {
+                visible: page.showFx
+                title: qsTr("Effects Library")
+                SplitView.preferredWidth: 280
+                SplitView.minimumWidth: 220
+                LibraryPanel {
+                    anchors.fill: parent
+                    anchors.margins: 6
                 }
-            ]
-            StackLayout {
-                anchors.fill: parent
-                anchors.margins: LingmoUI.Units.smallSpacing
-                currentIndex: left.tab
-                MediaBinPanel { onImportRequested: importDialog.open() }
-                LibraryPanel { }
-                SearchPanel { }
+            }
+            EditIndex {
+                visible: page.showIndex
+                SplitView.preferredWidth: 320
+                SplitView.minimumWidth: 240
+            }
+
+            // source | timeline viewers
+            Item {
+                SplitView.fillWidth: true
+                SplitView.minimumWidth: 480
+                RowLayout {
+                    anchors.fill: parent
+                    spacing: StudioTheme.gap
+                    Viewer {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.preferredWidth: 1
+                        role: "source"
+                        dual: true
+                        showEditButtons: true
+                    }
+                    Viewer {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.preferredWidth: 1
+                        role: "timeline"
+                        dual: true
+                    }
+                }
+            }
+
+            StudioPanel {
+                visible: page.showInspector
+                title: qsTr("Inspector")
+                SplitView.preferredWidth: 340
+                SplitView.minimumWidth: 260
+                Inspector { anchors.fill: parent }
             }
         }
 
-        MonitorPanel {
-            SplitView.fillWidth: true
-            SplitView.minimumWidth: 360
-        }
+        SplitView {
+            SplitView.preferredHeight: 340
+            SplitView.minimumHeight: 170
+            orientation: Qt.Horizontal
+            handle: PanelHandle { }
 
-        StudioPanel {
-            id: right
-            SplitView.preferredWidth: 340
-            SplitView.minimumWidth: 240
-            property int tab: 0
-            actions: [
-                LingmoUI.SegmentedControl {
-                    model: [qsTr("Inspector"), qsTr("History")]
-                    currentIndex: right.tab
-                    onActivated: function(i) { right.tab = i }
+            TimelinePanel {
+                SplitView.fillWidth: true
+            }
+            StudioPanel {
+                visible: page.showMixer
+                title: qsTr("Mixer")
+                SplitView.preferredWidth: 380
+                SplitView.minimumWidth: 200
+                Mixer {
+                    anchors.fill: parent
+                    anchors.margins: 6
+                    compact: true
                 }
-            ]
-            StackLayout {
-                anchors.fill: parent
-                anchors.topMargin: LingmoUI.Units.smallSpacing
-                currentIndex: right.tab
-                Inspector { }
-                HistoryPanel { }
             }
         }
-    }
-
-    TimelinePanel {
-        SplitView.preferredHeight: 330
-        SplitView.minimumHeight: 160
     }
 }

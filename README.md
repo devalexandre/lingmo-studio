@@ -3,6 +3,10 @@
 A video editor for the Lingmo desktop, built on the MLT framework and ffmpeg,
 with the Lingmo interface (Qt 6 / QML, `LingmoUI.CompatibleModule`).
 
+* **Media** — import, the source viewer, clip details and a large Media Pool.
+* **Cut** — fast assembly: one-click append, insert, place on top and smart
+  trim, the whole program above a close-up timeline that follows the playhead,
+  and “Gerar cortes” and captions one click away.
 * **Edit** — unlimited video, audio and subtitle tracks; select, razor, roll,
   slip and slide tools; ripple trims and deletes; magnetic snapping; markers;
   J/K/L shuttle; split at playhead (S); detached audio for J/L cuts; speed,
