@@ -27,6 +27,11 @@ class VideoItem : public QQuickItem
     Q_PROPERTY(bool compare READ compare WRITE setCompare NOTIFY compareChanged)
     Q_PROPERTY(double split READ split WRITE setSplit NOTIFY splitChanged)
     Q_PROPERTY(QRectF videoRect READ videoRect NOTIFY videoRectChanged)
+    // Aspect of the picture inside the frame (a source letterboxed into a
+    // project of another shape); 0 = the frame's
+    Q_PROPERTY(double contentAspect READ contentAspect WRITE setContentAspect NOTIFY contentAspectChanged)
+    // Crop the picture to fill the item (a vertical cut's centred crop) instead of fitting it
+    Q_PROPERTY(bool fill READ fill WRITE setFill NOTIFY fillChanged)
 
 public:
     explicit VideoItem(QQuickItem *parent = nullptr);
@@ -38,12 +43,18 @@ public:
     double split() const { return m_split; }
     void setSplit(double s);
     QRectF videoRect() const { return m_videoRect; }
+    double contentAspect() const { return m_contentAspect; }
+    void setContentAspect(double a);
+    bool fill() const { return m_fill; }
+    void setFill(bool on);
 
 Q_SIGNALS:
     void editorChanged();
     void compareChanged();
     void splitChanged();
     void videoRectChanged();
+    void contentAspectChanged();
+    void fillChanged();
 
 protected:
     QSGNode *updatePaintNode(QSGNode *old, UpdatePaintNodeData *) override;
@@ -60,4 +71,6 @@ private:
     double m_split = 0.5;
     bool m_dirty = false;
     QRectF m_videoRect;
+    double m_contentAspect = 0;
+    bool m_fill = false;
 };

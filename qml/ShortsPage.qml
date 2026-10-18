@@ -19,11 +19,34 @@ import LingmoUI.CompatibleModule 3.0 as LingmoUI
 Item {
     id: page
     signal back()
+    // a cut opened on the timeline: show the Edit page
+    signal openEditor()
 
     readonly property var shorts: editor.shorts
     readonly property var studioEditor: editor
     property string playingId: ""
-    readonly property var mediaList: editor.mediaBin.count >= 0 && visible ? shorts.mediaChoices() : []
+    // media can change without the bin's count changing (project size, proxies)
+    property int mediaRevision: 0
+    readonly property var mediaList: editor.mediaBin.count >= 0 && mediaRevision >= 0 && visible ? shorts.mediaChoices() : []
+    Connections {
+        target: editor
+        function onDocumentChanged() { page.mediaRevision++ }
+        function onSettingsChanged() { page.mediaRevision++ }
+        function onProjectChanged() { page.mediaRevision++ }
+    }
+
+    readonly property var currentMedia: {
+        for (let i = 0; i < mediaList.length; ++i)
+            if (mediaList[i].id === shorts.mediaId)
+                return mediaList[i]
+        return null
+    }
+
+    // The export of the generated cuts (also from the top bar's Export and Deliver)
+    function openExport() {
+        page.shorts.captionOutput = "video" // burned in, unless chosen otherwise for this export
+        exportDialog.open()
+    }
 
     onVisibleChanged: {
         if (!visible) {
@@ -44,7 +67,117 @@ Item {
     FolderDialog {
         id: folderDialog
         title: qsTr("Export the cuts to")
-        onAccepted: page.shorts.exportCuts(selectedFolder)
+        currentFolder: page.shorts.exportFolderUrl
+        onAccepted: page.shorts.exportFolder = selectedFolder.toString()
+    }
+
+    Dialog {
+        id: exportDialog
+        anchors.centerIn: Overlay.overlay
+        modal: true
+        width: Math.min(Overlay.overlay ? Overlay.overlay.width - 80 : 560, 560)
+        title: qsTr("Export cuts")
+        padding: LingmoUI.Units.largeSpacing
+
+        readonly property int cutCount: editor.shortSequences.length > 0 ? editor.shortSequences.length : page.shorts.selectedCount
+        readonly property int fileCount: {
+            if (editor.shortSequences.length === 0)
+                return page.shorts.selectedCount * page.shorts.selectedPlatforms.length
+            let n = 0
+            for (let i = 0; i < editor.shortSequences.length; ++i)
+                n += (editor.shortSequences[i].platforms || []).length
+            return n
+        }
+
+        contentItem: ColumnLayout {
+            spacing: LingmoUI.Units.largeSpacing
+
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: qsTr("%n cut(s)", "", exportDialog.cutCount) + " · " + qsTr("%n MP4 file(s), one per platform", "", exportDialog.fileCount)
+                font.pointSize: LingmoUI.Units.fontBody
+                color: LingmoUI.Theme.textColor
+            }
+            LingmoUI.Banner {
+                Layout.fillWidth: true
+                visible: editor.shortSequences.length === 0 && page.shorts.selectedCount > 0
+                type: LingmoUI.Banner.Info
+                closable: false
+                text: visible ? qsTr("The %n selected cut(s) are created first.", "", page.shorts.selectedCount) : ""
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Label { text: qsTr("Folder"); font.pointSize: LingmoUI.Units.fontBody; font.bold: true; color: LingmoUI.Theme.textColor }
+                RowLayout {
+                    Layout.fillWidth: true
+                    TextField {
+                        Layout.fillWidth: true
+                        readOnly: true
+                        text: page.shorts.exportFolder
+                    }
+                    LingmoUI.ActionButton { text: qsTr("Choose…"); iconName: "folder-open"; onClicked: folderDialog.open() }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Label { text: qsTr("Captions"); font.pointSize: LingmoUI.Units.fontBody; font.bold: true; color: LingmoUI.Theme.textColor }
+                ButtonGroup { id: captionGroup }
+                Repeater {
+                    model: [
+                        { id: "video", text: qsTr("In the video (default)"), note: qsTr("Burned into the picture: they show on every platform and player.") },
+                        { id: "video+srt", text: qsTr("In the video + .srt file"), note: qsTr("Also a .srt next to each MP4, for platforms that take caption files.") },
+                        { id: "srt", text: qsTr("Only a .srt file"), note: qsTr("The video without captions and a .srt next to it.") }
+                    ]
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+                        RadioButton {
+                            id: option
+                            Layout.fillWidth: true
+                            ButtonGroup.group: captionGroup
+                            text: modelData.text
+                            checked: page.shorts.captionOutput === modelData.id
+                            onToggled: if (checked) page.shorts.captionOutput = modelData.id
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: option.leftPadding + option.indicator.width + option.spacing
+                            text: modelData.note
+                            wrapMode: Text.WordWrap
+                            font.pointSize: LingmoUI.Units.fontCaption
+                            color: LingmoUI.Theme.secondaryTextColor
+                        }
+                    }
+                }
+            }
+        }
+
+        footer: RowLayout {
+            spacing: LingmoUI.Units.smallSpacing
+            Item { Layout.fillWidth: true }
+            LingmoUI.ActionButton {
+                text: qsTr("Cancel")
+                Layout.bottomMargin: LingmoUI.Units.largeSpacing
+                onClicked: exportDialog.close()
+            }
+            LingmoUI.ActionButton {
+                text: qsTr("Export")
+                iconName: "document-export"
+                primary: true
+                enabled: exportDialog.cutCount > 0 && !page.shorts.exporting
+                Layout.rightMargin: LingmoUI.Units.largeSpacing
+                Layout.bottomMargin: LingmoUI.Units.largeSpacing
+                onClicked: {
+                    page.shorts.exportCuts("", page.shorts.captionOutput)
+                    exportDialog.close()
+                }
+            }
+        }
     }
     Connections {
         target: editor.mediaBin
@@ -229,6 +362,14 @@ Item {
                             }
                             LingmoUI.ActionButton { text: qsTr("Cancel"); onClicked: page.shorts.cancel() }
                         }
+                        Label {
+                            Layout.fillWidth: true
+                            visible: editor.transcriber.running
+                            text: editor.transcriber.timing
+                            wrapMode: Text.WordWrap
+                            font.pointSize: LingmoUI.Units.fontCaption
+                            color: LingmoUI.Theme.secondaryTextColor
+                        }
                     }
                     LingmoUI.Banner {
                         Layout.fillWidth: true
@@ -266,10 +407,168 @@ Item {
                     }
                 }
 
+                // ---- the generated cuts, with their export
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    // all the room when there are no suggestions left
+                    Layout.fillHeight: page.shorts.candidates.length === 0
+                    visible: page.shorts.cuts.length > 0
+                    spacing: LingmoUI.Units.smallSpacing
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Label {
+                            text: qsTr("Your cuts (%1)").arg(page.shorts.cuts.length)
+                            font.pointSize: LingmoUI.Units.fontBody
+                            font.bold: true
+                            color: LingmoUI.Theme.textColor
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: page.shorts.exportSummary
+                            font.pointSize: LingmoUI.Units.fontCaption
+                            color: page.shorts.exportFailed > 0 ? LingmoUI.Theme.redColor : LingmoUI.Theme.secondaryTextColor
+                            elide: Text.ElideMiddle
+                        }
+                        LingmoUI.ActionButton {
+                            visible: page.shorts.exportDone
+                            text: qsTr("Open folder")
+                            iconName: "folder-open"
+                            onClicked: page.shorts.openExportFolder()
+                        }
+                        LingmoUI.ActionButton {
+                            text: qsTr("Export cuts…")
+                            iconName: "document-export"
+                            primary: !page.shorts.exportDone
+                            busy: page.shorts.exporting
+                            enabled: !page.shorts.exporting
+                            onClicked: page.openExport()
+                        }
+                    }
+                    ProgressBar {
+                        Layout.fillWidth: true
+                        visible: page.shorts.exporting
+                        from: 0; to: 1
+                        value: page.shorts.exportProgress
+                        indeterminate: page.shorts.exportProgress <= 0
+                    }
+                    ListView {
+                        id: cutList
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: page.shorts.candidates.length === 0 ? -1 : Math.min(contentHeight, 84 * 3 + spacing * 2)
+                        Layout.fillHeight: page.shorts.candidates.length === 0
+                        clip: true
+                        spacing: 4
+                        boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.vertical: ScrollBar {}
+                        model: page.shorts.cuts
+                        delegate: LingmoUI.Card {
+                            id: cutRow
+                            required property var modelData
+                            readonly property string state: modelData.state
+                            readonly property bool playing: page.playingId === "seq:" + modelData.id && editor.player.playing
+                            width: cutList.width - LingmoUI.Units.smallSpacing
+                            height: 84
+                            radius: LingmoUI.Theme.smallRadius
+                            highlighted: cutRow.playing
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: LingmoUI.Units.smallSpacing
+                                anchors.leftMargin: LingmoUI.Units.largeSpacing
+                                spacing: LingmoUI.Units.largeSpacing
+                                // vertical thumbnail with play: the cut with its captions in the preview
+                                Rectangle {
+                                    Layout.preferredWidth: 40
+                                    Layout.preferredHeight: 70
+                                    radius: 4
+                                    color: StudioTheme.well
+                                    clip: true
+                                    Image {
+                                        anchors.fill: parent
+                                        source: cutRow.modelData.thumbnail
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                    }
+                                    LingmoUI.IconButton {
+                                        anchors.centerIn: parent
+                                        iconName: cutRow.playing ? "media-playback-pause" : "media-playback-start"
+                                        tipText: qsTr("Play with captions")
+                                        onClicked: {
+                                            if (cutRow.playing) {
+                                                editor.player.pause()
+                                            } else {
+                                                page.playingId = "seq:" + cutRow.modelData.id
+                                                page.shorts.previewCut(cutRow.modelData.id)
+                                            }
+                                        }
+                                    }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: cutRow.modelData.name
+                                        font.pointSize: LingmoUI.Units.fontBody
+                                        font.bold: true
+                                        color: LingmoUI.Theme.textColor
+                                        elide: Text.ElideRight
+                                    }
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: cutRow.modelData.range + " · " + cutRow.modelData.length + " · " + cutRow.modelData.platformNames
+                                        font.pointSize: LingmoUI.Units.fontCaption
+                                        color: LingmoUI.Theme.secondaryTextColor
+                                        elide: Text.ElideRight
+                                    }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        LingmoUI.Spinner {
+                                            visible: cutRow.state === "reframing" || cutRow.state === "running"
+                                            running: visible
+                                            size: 14
+                                        }
+                                        Label {
+                                            text: ({ reframing: qsTr("Reframing on the faces…"), ready: qsTr("Ready"),
+                                                     queued: qsTr("Waiting to export"), running: qsTr("Exporting %1%").arg(Math.round(cutRow.modelData.progress * 100)),
+                                                     done: qsTr("Exported"), failed: qsTr("Export failed"), cancelled: qsTr("Export cancelled") })[cutRow.state] || ""
+                                            font.pointSize: LingmoUI.Units.fontCaption
+                                            color: cutRow.state === "failed" ? LingmoUI.Theme.redColor
+                                                 : cutRow.state === "done" || cutRow.state === "ready" ? LingmoUI.Theme.greenColor : LingmoUI.Theme.secondaryTextColor
+                                        }
+                                        ProgressBar {
+                                            Layout.fillWidth: true
+                                            visible: cutRow.state === "running" || cutRow.state === "queued"
+                                            from: 0; to: 1
+                                            value: cutRow.modelData.progress
+                                        }
+                                    }
+                                }
+                                LingmoUI.ActionButton {
+                                    text: qsTr("Open in the editor")
+                                    quiet: true
+                                    onClicked: {
+                                        if (page.shorts.editCut(cutRow.modelData.id))
+                                            page.openEditor()
+                                    }
+                                }
+                                LingmoUI.ActionButton {
+                                    text: qsTr("Export")
+                                    iconName: "document-export"
+                                    enabled: !page.shorts.exporting
+                                    onClicked: page.shorts.exportCut(cutRow.modelData.id)
+                                }
+                            }
+                        }
+                    }
+                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: StudioTheme.border }
+                }
+
                 ListView {
                     id: list
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    visible: page.shorts.candidates.length > 0 || page.shorts.cuts.length === 0 || page.shorts.running
                     clip: true
                     spacing: LingmoUI.Units.smallSpacing
                     boundsBehavior: Flickable.StopAtBounds
@@ -315,24 +614,20 @@ Item {
                     Label {
                         Layout.fillWidth: true
                         text: page.shorts.tracking ? qsTr("Following faces for the vertical crop…")
-                                                   : qsTr("%n cut(s) selected", "", page.shorts.selectedCount)
+                                                   : page.shorts.candidates.length > 0 ? qsTr("%n cut(s) selected", "", page.shorts.selectedCount) : ""
                         font.pointSize: LingmoUI.Units.fontCaption
                         color: LingmoUI.Theme.secondaryTextColor
                     }
                     LingmoUI.ActionButton {
-                        text: qsTr("Export all cuts…")
-                        iconName: "document-export"
-                        enabled: editor.shortSequences.length > 0
-                        onClicked: folderDialog.open()
-                    }
-                    LingmoUI.ActionButton {
+                        visible: page.shorts.candidates.length > 0
                         text: qsTr("Create %n cut(s)", "", page.shorts.selectedCount)
                         iconName: "edit-cut"
-                        primary: true
+                        primary: editor.shortSequences.length === 0
                         enabled: page.shorts.selectedCount > 0 && !page.shorts.running
+                        // the cuts appear above, ready to export or edit: the page stays
                         onClicked: {
-                            if (page.shorts.createCuts() > 0)
-                                page.back()
+                            page.playingId = ""
+                            page.shorts.createCuts()
                         }
                     }
                 }
@@ -351,14 +646,26 @@ Item {
                 spacing: LingmoUI.Units.smallSpacing
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: width * 16 / 9
+                    // the shape of the cut (the first platform's)
+                    Layout.preferredHeight: width * page.shorts.previewSize.height / Math.max(1, page.shorts.previewSize.width)
                     radius: StudioTheme.smallRadius
                     color: StudioTheme.well
                     clip: true
+                    // the source, centred and cropped like the cut, with its captions
+                    // drawn by libass from the ASS the export burns in
                     VideoView {
                         anchors.fill: parent
                         editor: page.studioEditor
                         visible: page.playingId !== ""
+                        fill: true
+                        contentAspect: editor.sourceAspect // the media playing, inside the project's frame
+                    }
+                    CaptionOverlay {
+                        objectName: "shortsCaptionOverlay"
+                        anchors.fill: parent
+                        visible: page.playingId !== "" && page.shorts.previewCaptions !== ""
+                        source: page.shorts.previewCaptions
+                        time: editor.player.mode === "source" ? editor.player.position * 1000 / editor.fps : 0
                     }
                     Label {
                         anchors.centerIn: parent

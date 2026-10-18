@@ -33,7 +33,7 @@ static QList<Word> talk(int sentencesCount, int wordsPerSentence = 9)
     qint64 t = 1000;
     for (int s = 0; s < sentencesCount; ++s) {
         for (int w = 0; w < wordsPerSentence; ++w) {
-            QString text = QStringLiteral("palavra%1").arg(w);
+            QString text = QStringLiteral("palavra%1x%2").arg(s).arg(w); // no phrase repeats (Captions::repetition)
             if (s == 3 && w == 0)
                 text = QStringLiteral("Como");
             if (w + 1 == wordsPerSentence)
@@ -146,6 +146,27 @@ private Q_SLOTS:
         QVERIFY(!cands.isEmpty());
         for (const auto &c : cands)
             QVERIFY(c.seconds() <= 10.01);
+    }
+
+    // A transcription loop must not win: the same words over and over score
+    // far below varied speech, with or without the LLM's opinion
+    void repetitiveCutsLose()
+    {
+        Highlights::Candidate loop, speech;
+        loop.startMs = speech.startMs = 0;
+        loop.endMs = speech.endMs = 20000;
+        loop.text = QString(QStringLiteral("Alguém tinha que fazer alguma coisa. ")).repeated(10).trimmed();
+        speech.text = QStringLiteral("Você sabia que dá para cortar um vídeo longo em vários curtos? Primeiro a gente transcreve, depois escolhe as "
+                                     "frases mais fortes e no fim exporta cada corte com legenda.");
+        QList<Word> words = Captions::spreadWords(loop.text, 0, 20000);
+        const Highlights::Features f;
+        const double loopScore = Highlights::heuristicScore(loop, words, f, 20);
+        const double speechScore = Highlights::heuristicScore(speech, Captions::spreadWords(speech.text, 0, 20000), f, 20);
+        QVERIFY(Highlights::scoreParts(loop, words, f, 20).repetition > 0.8);
+        QVERIFY2(loopScore < speechScore / 3, qPrintable(QStringLiteral("%1 vs %2").arg(loopScore).arg(speechScore)));
+        // an LLM that loved the "obsessive repetition" (85) still can't lift it
+        QVERIFY(Highlights::penaliseRepetition(Highlights::combine(loopScore, 85), loop.text) < 20);
+        QCOMPARE(Highlights::penaliseRepetition(80, speech.text), 80.0);
     }
 
     void heuristicPrefersLivelySegments()

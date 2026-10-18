@@ -79,6 +79,7 @@ struct ScoreParts {
     double hook = 0;     // opening line is a question / hook phrase
     double complete = 0; // ends on a sentence end
     double fit = 0;      // close to the ideal length
+    double repetition = 0; // the same phrase over and over (a transcription loop)
 };
 ScoreParts scoreParts(const Candidate &c, const QList<Captions::Word> &words, const Features &f, double idealSec);
 double heuristicScore(const Candidate &c, const QList<Captions::Word> &words, const Features &f, double idealSec);
@@ -88,6 +89,9 @@ QList<Candidate> pickBest(QList<Candidate> list, int count, double maxOverlap = 
 
 // Combined score when the LLM answered
 double combine(double heuristic, double llm);
+// A score scaled down for a repetitive text (Captions::repetition): normal
+// speech repeats a few word trigrams, a whisper loop almost all of them
+double penaliseRepetition(double score, const QString &text);
 
 // ---- Ollama
 // Body for POST /api/chat (stream off, think off, JSON answer)

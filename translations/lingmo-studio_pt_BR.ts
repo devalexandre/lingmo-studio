@@ -665,6 +665,14 @@
         <translation>Limpar concluídos</translation>
     </message>
     <message>
+        <source>Generated cuts (%1)</source>
+        <translation>Cortes gerados (%1)</translation>
+    </message>
+    <message>
+        <source>Each cut becomes one MP4 per platform, captions in the video. The settings on the left export the whole timeline instead.</source>
+        <translation>Cada corte vira um MP4 por plataforma, com a legenda no vídeo. As opções à esquerda exportam a linha do tempo inteira.</translation>
+    </message>
+    <message>
         <source>queued</source>
         <translation>na fila</translation>
     </message>
@@ -675,6 +683,14 @@
     <message>
         <source>failed</source>
         <translation>falhou</translation>
+    </message>
+    <message>
+        <source>Open folder</source>
+        <translation>Abrir pasta</translation>
+    </message>
+    <message>
+        <source>Export cuts…</source>
+        <translation>Exportar cortes…</translation>
     </message>
     <message>
         <source>cancelled</source>
@@ -2261,6 +2277,10 @@ Seu Nome</translation>
         <translation>Abrir a página Entregar</translation>
     </message>
     <message>
+        <source>Export the generated cuts</source>
+        <translation>Exportar os cortes gerados</translation>
+    </message>
+    <message>
         <source>Recover unsaved work?</source>
         <translation>Recuperar trabalho não salvo?</translation>
     </message>
@@ -2851,6 +2871,29 @@ Seu Nome</translation>
         <source>Following faces for the vertical crop…</source>
         <translation>Seguindo os rostos para o enquadramento vertical…</translation>
     </message>
+    <message>
+        <source>There are no generated cuts to export</source>
+        <translation>Não há cortes gerados para exportar</translation>
+    </message>
+    <message>
+        <source>Waiting for the face tracking to finish…</source>
+        <translation>Esperando terminar de seguir os rostos…</translation>
+    </message>
+    <message>
+        <source>Exporting %1 of %2 files · %3%</source>
+        <translation>Exportando %1 de %2 arquivos · %3%</translation>
+    </message>
+    <message>
+        <source>%1 of %2 files exported; %3 failed (details in Deliver › Render Queue)</source>
+        <translation>%1 de %2 arquivos exportados; %3 falharam (detalhes em Entregar › Fila de renderização)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s) exported to %1</source>
+        <translation>
+            <numerusform>%n arquivo exportado para %1</numerusform>
+            <numerusform>%n arquivos exportados para %1</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>ShortsPage</name>
@@ -2861,6 +2904,71 @@ Seu Nome</translation>
     <message>
         <source>Export the cuts to</source>
         <translation>Exportar os cortes para</translation>
+    </message>
+    <message>
+        <source>Export cuts</source>
+        <translation>Exportar cortes</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n cut(s)</source>
+        <translation>
+            <numerusform>%n corte</numerusform>
+            <numerusform>%n cortes</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n MP4 file(s), one per platform</source>
+        <translation>
+            <numerusform>%n arquivo MP4, um por plataforma</numerusform>
+            <numerusform>%n arquivos MP4, um por plataforma</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>The %n selected cut(s) are created first.</source>
+        <translation>
+            <numerusform>O corte selecionado é criado antes.</numerusform>
+            <numerusform>Os %n cortes selecionados são criados antes.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation>Pasta</translation>
+    </message>
+    <message>
+        <source>Choose…</source>
+        <translation>Escolher…</translation>
+    </message>
+    <message>
+        <source>Captions</source>
+        <translation>Legenda</translation>
+    </message>
+    <message>
+        <source>In the video (default)</source>
+        <translation>No vídeo (padrão)</translation>
+    </message>
+    <message>
+        <source>Burned into the picture: they show on every platform and player.</source>
+        <translation>Gravada na imagem: aparece em qualquer plataforma e player.</translation>
+    </message>
+    <message>
+        <source>In the video + .srt file</source>
+        <translation>No vídeo + arquivo .srt</translation>
+    </message>
+    <message>
+        <source>Also a .srt next to each MP4, for platforms that take caption files.</source>
+        <translation>Também um .srt ao lado de cada MP4, para plataformas que aceitam arquivo de legenda.</translation>
+    </message>
+    <message>
+        <source>Only a .srt file</source>
+        <translation>Só arquivo .srt</translation>
+    </message>
+    <message>
+        <source>The video without captions and a .srt next to it.</source>
+        <translation>O vídeo sem legenda e um .srt ao lado.</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>Exportar</translation>
     </message>
     <message>
         <source>Generate cuts</source>
@@ -2951,6 +3059,54 @@ Seu Nome</translation>
         <translation>Avaliado por som, fala e cenas</translation>
     </message>
     <message>
+        <source>Your cuts (%1)</source>
+        <translation>Seus cortes (%1)</translation>
+    </message>
+    <message>
+        <source>Open folder</source>
+        <translation>Abrir pasta</translation>
+    </message>
+    <message>
+        <source>Export cuts…</source>
+        <translation>Exportar cortes…</translation>
+    </message>
+    <message>
+        <source>Play with captions</source>
+        <translation>Assistir com legenda</translation>
+    </message>
+    <message>
+        <source>Reframing on the faces…</source>
+        <translation>Reenquadrando nos rostos…</translation>
+    </message>
+    <message>
+        <source>Ready</source>
+        <translation>Pronto</translation>
+    </message>
+    <message>
+        <source>Waiting to export</source>
+        <translation>Na fila para exportar</translation>
+    </message>
+    <message>
+        <source>Exporting %1%</source>
+        <translation>Exportando %1%</translation>
+    </message>
+    <message>
+        <source>Exported</source>
+        <translation>Exportado</translation>
+    </message>
+    <message>
+        <source>Export failed</source>
+        <translation>Falha ao exportar</translation>
+    </message>
+    <message>
+        <source>Export cancelled</source>
+        <translation>Exportação cancelada</translation>
+    </message>
+    <message>
+        <source>Open in the editor</source>
+        <translation>Abrir no editor</translation>
+    </message>
+    <message>
         <source>Ready to find the best moments</source>
         <translation>Pronto para encontrar os melhores momentos</translation>
     </message>
@@ -2980,10 +3136,6 @@ Seu Nome</translation>
             <numerusform>%n corte selecionado</numerusform>
             <numerusform>%n cortes selecionados</numerusform>
         </translation>
-    </message>
-    <message>
-        <source>Export all cuts…</source>
-        <translation>Exportar todos os cortes…</translation>
     </message>
     <message numerus="yes">
         <source>Create %n cut(s)</source>
@@ -3346,6 +3498,18 @@ Seu Nome</translation>
         <translation>Adicionar marcador</translation>
     </message>
     <message>
+        <source>Cuts (%1)</source>
+        <translation>Cortes (%1)</translation>
+    </message>
+    <message>
+        <source>Open a generated cut</source>
+        <translation>Abrir um corte gerado</translation>
+    </message>
+    <message>
+        <source>Main timeline</source>
+        <translation>Linha do tempo principal</translation>
+    </message>
+    <message>
         <source>Zoom out</source>
         <translation>Afastar</translation>
     </message>
@@ -3420,6 +3584,34 @@ Seu Nome</translation>
         <translation>Nenhum mecanismo de transcrição está instalado.</translation>
     </message>
     <message>
+        <source>recommended</source>
+        <translation>recomendado</translation>
+    </message>
+    <message>
+        <source>download %1</source>
+        <translation>baixar %1</translation>
+    </message>
+    <message>
+        <source>slow here</source>
+        <translation>lento aqui</translation>
+    </message>
+    <message>
+        <source>%1%</source>
+        <translation>%1%</translation>
+    </message>
+    <message>
+        <source>%1 elapsed</source>
+        <translation>%1 decorridos</translation>
+    </message>
+    <message>
+        <source>~%1 left</source>
+        <translation>~%1 restantes</translation>
+    </message>
+    <message>
+        <source>%1 of audio</source>
+        <translation>%1 de áudio</translation>
+    </message>
+    <message>
         <source>Transcript ready</source>
         <translation>Transcrição pronta</translation>
     </message>
@@ -3434,6 +3626,10 @@ Seu Nome</translation>
     <message>
         <source>ffmpeg is not installed</source>
         <translation>O ffmpeg não está instalado</translation>
+    </message>
+    <message>
+        <source>Transcribing with %1 on %2…</source>
+        <translation>Transcrevendo com %1 na %2…</translation>
     </message>
     <message>
         <source>Transcribing on this computer (%1, %2)…</source>
@@ -3459,6 +3655,66 @@ Seu Nome</translation>
         <source>Cancelled</source>
         <translation>Cancelado</translation>
     </message>
+    <message>
+        <source>Could not create the folder %1.</source>
+        <translation>Não foi possível criar a pasta %1.</translation>
+    </message>
+    <message>
+        <source>There is not enough free disk space for %1.</source>
+        <translation>Não há espaço livre em disco suficiente para o %1.</translation>
+    </message>
+    <message>
+        <source>Could not write to %1.</source>
+        <translation>Não foi possível gravar em %1.</translation>
+    </message>
+    <message>
+        <source>Contacting Hugging Face…</source>
+        <translation>Conectando ao Hugging Face…</translation>
+    </message>
+    <message>
+        <source>%1% · %2 of %3</source>
+        <translation>%1% · %2 de %3</translation>
+    </message>
+    <message>
+        <source>Could not save %1: %2</source>
+        <translation>Não foi possível salvar %1: %2</translation>
+    </message>
+    <message>
+        <source>The download of %1 failed: %2</source>
+        <translation>O download de %1 falhou: %2</translation>
+    </message>
+    <message>
+        <source>The download of %1 is incomplete. Try again.</source>
+        <translation>O download de %1 ficou incompleto. Tente de novo.</translation>
+    </message>
+    <message>
+        <source>The downloaded %1 is damaged (its checksum doesn&apos;t match). Try again.</source>
+        <translation>O %1 baixado está corrompido (a soma de verificação não confere). Tente de novo.</translation>
+    </message>
+    <message>
+        <source>Could not save %1.</source>
+        <translation>Não foi possível salvar %1.</translation>
+    </message>
+    <message>
+        <source>Installing %1…</source>
+        <translation>Instalando %1…</translation>
+    </message>
+    <message>
+        <source>%1 is installed. Transcription now uses the graphics card.</source>
+        <translation>%1 instalado. A transcrição agora usa a placa de vídeo.</translation>
+    </message>
+    <message>
+        <source>The installation of %1 was cancelled.</source>
+        <translation>A instalação de %1 foi cancelada.</translation>
+    </message>
+    <message>
+        <source>Another program is installing software. Try again when it finishes.</source>
+        <translation>Outro programa está instalando software. Tente de novo quando ele terminar.</translation>
+    </message>
+    <message>
+        <source>Could not install %1. Install it from Lingmo Store or with “sudo pacman -S %1”.</source>
+        <translation>Não foi possível instalar %1. Instale pela Lingmo Store ou com “sudo pacman -S %1”.</translation>
+    </message>
 </context>
 <context>
     <name>TranscriptionStatus</name>
@@ -3483,16 +3739,68 @@ Seu Nome</translation>
         <translation>Transcrição local com %1</translation>
     </message>
     <message>
-        <source>Model %1 · language: %2 · nothing leaves this computer</source>
-        <translation>Modelo %1 · idioma: %2 · nada sai deste computador</translation>
+        <source>%1 · language: %2 · nothing leaves this computer</source>
+        <translation>%1 · idioma: %2 · nada sai deste computador</translation>
     </message>
     <message>
-        <source>Word timing</source>
-        <translation>Tempo por palavra</translation>
+        <source>GPU</source>
+        <translation>GPU</translation>
+    </message>
+    <message>
+        <source>CPU</source>
+        <translation>CPU</translation>
     </message>
     <message>
         <source>Choose the model in Settings</source>
         <translation>Escolher o modelo nas Configurações</translation>
+    </message>
+    <message>
+        <source>Model for this run</source>
+        <translation>Modelo nesta execução</translation>
+    </message>
+    <message>
+        <source>As in Settings</source>
+        <translation>O das Configurações</translation>
+    </message>
+    <message>
+        <source>%1 is slow on this computer</source>
+        <translation>%1 é lento neste computador</translation>
+    </message>
+    <message>
+        <source>It would run at %1 on the %2. Recommended here: %3.</source>
+        <translation>Rodaria a %1 na %2. Recomendado aqui: %3.</translation>
+    </message>
+    <message>
+        <source>Use %1</source>
+        <translation>Usar %1</translation>
+    </message>
+    <message>
+        <source>Download and use %1</source>
+        <translation>Baixar e usar %1</translation>
+    </message>
+    <message>
+        <source>Install GPU support</source>
+        <translation>Instalar suporte à GPU</translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation>Configurações</translation>
+    </message>
+    <message>
+        <source>Transcription runs on the processor now.</source>
+        <translation>Por enquanto a transcrição roda no processador.</translation>
+    </message>
+    <message>
+        <source>Installing…</source>
+        <translation>Instalando…</translation>
+    </message>
+    <message>
+        <source>Downloading %1 · %2</source>
+        <translation>Baixando %1 · %2</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
     </message>
     <message>
         <source>Download a speech model</source>
@@ -3503,12 +3811,20 @@ Seu Nome</translation>
         <translation>Instale um mecanismo de transcrição</translation>
     </message>
     <message>
+        <source>whisper.cpp is installed. %1 suits this computer (%2).</source>
+        <translation>O whisper.cpp está instalado. O %1 é o indicado para este computador (%2).</translation>
+    </message>
+    <message>
         <source>whisper.cpp is installed. Download a model (base or small are good for Portuguese) in Settings › AI › Transcription and captions.</source>
         <translation>O whisper.cpp está instalado. Baixe um modelo (base ou small vão bem em português) em Configurações › IA › Transcrição e legendas.</translation>
     </message>
     <message>
         <source>Captions are made on this computer with whisper.cpp. Install it with “sudo pacman -S whisper-cpp”, then download a model in Settings › AI › Transcription and captions. faster-whisper (whisper-ctranslate2, from pipx or the AUR) also works.</source>
         <translation>As legendas são feitas neste computador com o whisper.cpp. Instale com “sudo pacman -S whisper-cpp” e depois baixe um modelo em Configurações › IA › Transcrição e legendas. O faster-whisper (whisper-ctranslate2, pelo pipx ou AUR) também funciona.</translation>
+    </message>
+    <message>
+        <source>Download %1</source>
+        <translation>Baixar %1</translation>
     </message>
     <message>
         <source>Check again</source>
@@ -3624,6 +3940,52 @@ Seu Nome</translation>
     <message>
         <source>Preview volume</source>
         <translation>Volume da prévia</translation>
+    </message>
+</context>
+<context>
+    <name>WhisperHw</name>
+    <message>
+        <source>Runs on the graphics card with %1 (%2 GB of video memory).</source>
+        <translation>Roda na placa de vídeo com %1 (%2 GB de memória de vídeo).</translation>
+    </message>
+    <message>
+        <source>Runs on the graphics card with %1.</source>
+        <translation>Roda na placa de vídeo com %1.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n processor core(s)</source>
+        <translation>
+            <numerusform>%n núcleo do processador</numerusform>
+            <numerusform>%n núcleos do processador</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Install %1 to use your %2 (up to ~%3× faster)</source>
+        <translation>Instale %1 para usar sua %2 (até ~%3× mais rápido)</translation>
+    </message>
+    <message>
+        <source>Install %1 to use your %2</source>
+        <translation>Instale %1 para usar sua %2</translation>
+    </message>
+    <message>
+        <source>Your %1 can&apos;t run whisper yet: ggml has no backend for it, so this model is for the processor (%2).</source>
+        <translation>Sua %1 ainda não roda o whisper: falta o backend do ggml para ela, então este modelo é para o processador (%2).</translation>
+    </message>
+    <message>
+        <source>The graphics card has too little video memory, so this model is for the processor (%1).</source>
+        <translation>A placa de vídeo tem pouca memória, então este modelo é para o processador (%1).</translation>
+    </message>
+    <message>
+        <source>The fastest model that still keeps up with the speech on the processor (%1).</source>
+        <translation>O melhor modelo que ainda acompanha a fala no processador (%1).</translation>
+    </message>
+    <message>
+        <source>~%1× real time</source>
+        <translation>~%1× o tempo real</translation>
+    </message>
+    <message>
+        <source>~%1 min per minute of audio</source>
+        <translation>~%1 min por minuto de áudio</translation>
     </message>
 </context>
 </TS>

@@ -242,6 +242,14 @@ Dialog {
                 value: Math.max(0, dialog.transcriber.progress)
                 indeterminate: dialog.transcriber.progress < 0
             }
+            Label {
+                Layout.fillWidth: true
+                visible: dialog.transcriber.running
+                text: dialog.transcriber.timing
+                font.pointSize: LingmoUI.Units.fontCaption
+                color: LingmoUI.Theme.secondaryTextColor
+                elide: Text.ElideRight
+            }
         }
     }
 

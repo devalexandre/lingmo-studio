@@ -7,6 +7,7 @@
  * any later version.
  */
 
+import QtQml
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -284,6 +285,38 @@ StudioPanel {
                     fontSize: StudioTheme.fontSmall
                     enabled: index < editor.sequencePath.length - 1
                     onClicked: editor.leaveCompound(index)
+                }
+            }
+        },
+        // the cuts made in Gerar cortes, one click away
+        StudioButton {
+            visible: editor.shortSequences.length > 0
+            text: qsTr("Cuts (%1)").arg(editor.shortSequences.length)
+            iconName: "list"
+            size: 22
+            fontSize: StudioTheme.fontSmall
+            tip: qsTr("Open a generated cut")
+            onClicked: cutsMenu.popup(this, 0, height)
+            Menu {
+                id: cutsMenu
+                MenuItem {
+                    text: qsTr("Main timeline")
+                    checkable: true
+                    checked: editor.sequencePath.length <= 1
+                    onTriggered: editor.leaveCompound(0)
+                }
+                MenuSeparator { }
+                Instantiator {
+                    model: editor.shortSequences
+                    delegate: MenuItem {
+                        required property var modelData
+                        text: modelData.name
+                        checkable: true
+                        checked: editor.sequencePath.length > 1 && editor.sequencePath[editor.sequencePath.length - 1] === modelData.name
+                        onTriggered: editor.shorts.editCut(modelData.id)
+                    }
+                    onObjectAdded: function(index, object) { cutsMenu.insertItem(index + 2, object) }
+                    onObjectRemoved: function(index, object) { cutsMenu.removeItem(object) }
                 }
             }
         }

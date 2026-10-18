@@ -14,11 +14,13 @@
 
 #pragma once
 
+#include "captions.h"
 #include "exporter.h"
 #include "model.h"
 #include "plan.h"
 #include "projectio.h"
 
+#include <QHash>
 #include <QImage>
 
 #include <QObject>
@@ -94,6 +96,12 @@ class Editor : public QObject
     Q_PROPERTY(bool hasCaptions READ hasCaptions NOTIFY documentChanged)
     Q_PROPERTY(bool captionsBusy READ captionsBusy NOTIFY captionsBusyChanged)
     Q_PROPERTY(QVariantList shortSequences READ shortSequences NOTIFY documentChanged)
+    // Captions of the media in the source viewer, when its speech is known (Gerar
+    // cortes or automatic captions): an ASS file in file time, drawn over the
+    // source by libass like the export draws the caption track ("" = none)
+    Q_PROPERTY(QString sourceCaptions READ sourceCaptions NOTIFY sourceCaptionsChanged)
+    // width / height of the media in the source viewer (0 = no picture)
+    Q_PROPERTY(double sourceAspect READ sourceAspect NOTIFY sourceCaptionsChanged)
 
 public:
     explicit Editor(QObject *parent = nullptr);
@@ -167,6 +175,12 @@ public:
     bool hasCaptions() const;
     bool captionsBusy() const { return !m_captionClip.isEmpty(); }
     QVariantList shortSequences() const;
+    QString sourceCaptions() const { return m_sourceCaptions; }
+    double sourceAspect() const { return m_sourceAspect; }
+    // Words of a media file (file time), for the source viewer's captions
+    void rememberWords(const QString &mediaId, const QList<Studio::Captions::Word> &words);
+    // Writes an ASS script to the captions cache (named by its content) and returns its path
+    static QString cacheCaptions(const QString &ass);
 
     // ---- Shorts (see shorts.h)
     struct ShortCut {
@@ -180,6 +194,10 @@ public:
     // Returns {sequence id, video clip id} per cut. styleId empty = no captions.
     QList<QPair<QString, QString>> createShorts(const Studio::MediaItem &media, const QList<ShortCut> &cuts, const QStringList &platforms,
                                                 const QString &styleId, const QList<Studio::Captions::Word> &words);
+    // The caption track of a cut: the words between startMs and endMs (file
+    // time), relative to the cut, laid out for a width x height frame
+    static Studio::Track shortCaptionTrack(const QList<Studio::Captions::Word> &words, qint64 startMs, qint64 endMs,
+                                           const Studio::Captions::Style &style, int width, int height, double fps, int lengthFrames);
     // Position X keyframes from a subject path (times relative to the clip start)
     void applyReframe(const QString &sequenceId, const QString &clipId, const QList<Studio::Reframe::Sample> &samples);
     // Queues a render of a project (export and batch export)
@@ -309,8 +327,17 @@ public:
     // srt | vtt | ass
     Q_INVOKABLE bool exportCaptions(const QUrl &file, const QString &format = QStringLiteral("srt"));
     Q_INVOKABLE void openTranscriptionSettings();
-    // Batch export of the generated cuts: one file per cut and platform (+ .srt)
-    Q_INVOKABLE void exportShorts(const QUrl &folder);
+    // Batch export of the generated cuts: one file per cut and platform.
+    // captions: "video" burns them into the picture (the default), "video+srt"
+    // also writes a .srt next to each file, "srt" writes only the .srt.
+    struct ShortExport {
+        QString sequenceId;
+        QString platform;
+        QString output;
+    };
+    QList<ShortExport> exportShorts(const QUrl &folder, const QString &captions = QStringLiteral("video"),
+                                    const QStringList &sequenceIds = QStringList());
+    static QString defaultShortsFolder();
 
     // -------- export
     Q_INVOKABLE void queueExport(const QString &presetId, const QUrl &output, bool hardware, int quality, bool inOutOnly);
@@ -345,10 +372,15 @@ Q_SIGNALS:
     void documentChanged();
     void captionsBusyChanged();
     void whisperChanged();
+    void sourceCaptionsChanged();
     void error(const QString &message);
 
 private:
     friend class SnapshotCommand;
+    void updateSourceCaptions();
+    QHash<QString, QList<Studio::Captions::Word>> m_mediaWords;
+    QString m_sourceCaptions;
+    double m_sourceAspect = 0;
     using EditFn = std::function<bool(Studio::Timeline &, Studio::Document &, QString *)>;
     bool modify(const QString &text, const EditFn &fn, int mergeId = -1, const QString &mergeKey = {});
     Studio::Timeline &timelineIn(Studio::Document &doc) const;

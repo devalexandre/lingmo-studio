@@ -18,6 +18,7 @@
 #include "editor.h"
 #include "imageproviders.h"
 #include "player.h"
+#include "captionoverlay.h"
 #include "videoitem.h"
 
 #include <QApplication>
@@ -115,6 +116,7 @@ int main(int argc, char *argv[])
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("lingmo-studio"), QIcon::fromTheme(QStringLiteral("applications-multimedia"))));
 
     qmlRegisterType<VideoItem>("Lingmo.Studio", 1, 0, "VideoView");
+    qmlRegisterType<CaptionOverlay>("Lingmo.Studio", 1, 0, "CaptionOverlay");
 
     Editor editor;
     QQmlApplicationEngine engine;

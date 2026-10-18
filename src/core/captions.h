@@ -69,6 +69,14 @@ Transcript fromSubtitleCues(const QList<QPair<QPair<qint64, qint64>, QString>> &
 // Splits text into words and spreads them over [startMs, endMs] by length
 QList<Word> spreadWords(const QString &text, qint64 startMs, qint64 endMs);
 QString joinWords(const QList<Word> &words);
+// Whisper's repetition loop ("Alguém tinha que fazer alguma coisa." dozens of
+// times over music or game audio): a phrase of 1-12 words repeated three or
+// more times in a row (four for a single word) keeps its first occurrence.
+QList<Word> collapseRepeats(const QList<Word> &words);
+// 0 (every phrase new) .. 1 (one phrase over and over): the share of the
+// word trigrams that already appeared in the text
+double repetition(const QList<Word> &words);
+double repetition(const QString &text);
 
 // ---------------------------------------------------------------- cues
 

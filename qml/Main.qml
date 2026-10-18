@@ -51,6 +51,20 @@ LingmoUI.Window {
         showShorts = false
     }
     function openCaptions(clipId) { captionsDialog.openFor(clipId) }
+    // Export: the generated cuts when there are some (or the Gerar cortes page
+    // has cuts picked), on their page with their export flow; else Deliver
+    readonly property bool exportsCuts: editor.shortSequences.length > 0 || (showShorts && editor.shorts.selectedCount > 0)
+    function exportCuts() {
+        showStart = false
+        showShorts = true
+        shortsPage.openExport()
+    }
+    function exportAction() {
+        if (exportsCuts)
+            exportCuts()
+        else
+            goToPage(deliverPage)
+    }
     function openShorts(mediaId) {
         if (mediaId)
             editor.shorts.mediaId = mediaId
@@ -359,7 +373,7 @@ LingmoUI.Window {
     Shortcut { sequence: "Ctrl+I"; onActivated: importDialog.open() }
     Shortcut { sequence: "Ctrl+A"; enabled: !root.typing(); onActivated: editor.selectAll() }
     Shortcut { sequence: "Escape"; enabled: !root.typing(); onActivated: editor.clearSelection() }
-    Shortcut { sequence: "Ctrl+M"; enabled: !root.typing(); onActivated: root.goToPage(root.deliverPage) }
+    Shortcut { sequence: "Ctrl+M"; enabled: !root.typing(); onActivated: root.exportAction() }
     Shortcut { sequence: "Shift+1"; onActivated: { root.showShorts = false; root.showStart = true } }
     Shortcut { sequence: "Shift+2"; onActivated: root.goToPage(0) }
     Shortcut { sequence: "Shift+3"; onActivated: root.goToPage(1) }
@@ -487,9 +501,9 @@ LingmoUI.Window {
                     iconSize: 14
                     size: 26
                     primary: true
-                    tip: qsTr("Open the Deliver page")
+                    tip: root.exportsCuts ? qsTr("Export the generated cuts") : qsTr("Open the Deliver page")
                     shortcut: "Ctrl+M"
-                    onClicked: root.goToPage(root.deliverPage)
+                    onClicked: root.exportAction()
                 }
             }
         }
@@ -525,14 +539,16 @@ LingmoUI.Window {
             EffectsPage { }
             ColorPage { active: root.page === 4 && !root.showStart && !root.showShorts }
             AudioPage { }
-            DeliverPage { }
+            DeliverPage { onExportCutsRequested: root.exportCuts() }
             StartPage {
                 onDone: root.showStart = false
                 onOpenRequested: openDialog.open()
                 onShortsRequested: root.openShorts("")
             }
             ShortsPage {
+                id: shortsPage
                 onBack: root.showShorts = false
+                onOpenEditor: root.goToPage(root.pageIds.indexOf("edit"))
             }
         }
 

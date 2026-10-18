@@ -181,6 +181,19 @@ StudioPanel {
                 compare: viewer.compare && !viewer.sourceSide
                 split: splitHandle.x / Math.max(1, width)
             }
+            // the source's captions, when its speech is known (libass, like the export)
+            CaptionOverlay {
+                readonly property rect area: video.videoRect
+                readonly property real aspect: viewer.studioEditor.sourceAspect
+                readonly property bool wide: area.height > 0 && area.width / area.height > aspect
+                visible: viewer.live && viewer.sourceSide && viewer.studioEditor.sourceCaptions !== "" && aspect > 0 && area.width > 0
+                width: wide ? area.height * aspect : area.width
+                height: wide ? area.height : area.width / Math.max(0.01, aspect)
+                x: video.x + area.x + (area.width - width) / 2
+                y: video.y + area.y + (area.height - height) / 2
+                source: viewer.studioEditor.sourceCaptions
+                time: viewer.player.position * 1000 / viewer.studioEditor.fps
+            }
             // held frame of the inactive side
             Image {
                 anchors.fill: parent

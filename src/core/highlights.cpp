@@ -202,6 +202,7 @@ ScoreParts scoreParts(const Candidate &c, const QList<Word> &words, const Featur
     if (c.text.contains(QRegularExpression(QStringLiteral("\\d"))))
         p.hook = std::max(p.hook, 0.4); // numbers/lists hold attention
 
+    p.repetition = Captions::repetition(c.text);
     p.complete = sentenceEnd(lastWord) ? 1.0 : 0.3;
     const double ideal = idealSec > 0 ? idealSec : secs;
     p.fit = clamp01(1.0 - std::abs(secs - ideal) / std::max(ideal, 1.0));
@@ -212,7 +213,13 @@ double heuristicScore(const Candidate &c, const QList<Word> &words, const Featur
 {
     const ScoreParts p = scoreParts(c, words, f, idealSec);
     const double s = 0.26 * p.density + 0.22 * p.energy + 0.10 * p.scenes + 0.14 * p.hook + 0.12 * p.complete + 0.16 * p.fit - 0.30 * p.pauses;
-    return std::clamp(s * 100.0, 0.0, 100.0);
+    return penaliseRepetition(std::clamp(s * 100.0, 0.0, 100.0), c.text);
+}
+
+double penaliseRepetition(double score, const QString &text)
+{
+    const double r = Captions::repetition(text);
+    return score * (1.0 - std::clamp((r - 0.15) * 1.5, 0.0, 0.9));
 }
 
 QList<Candidate> pickBest(QList<Candidate> list, int count, double maxOverlap)

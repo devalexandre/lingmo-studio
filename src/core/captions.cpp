@@ -99,6 +99,104 @@ static QList<Word> normalizeWords(QList<Word> in)
     return out;
 }
 
+// whisper.cpp's DTW times trail the start of the sound by ~140 ms (measured
+// on Portuguese speech with known onsets, large-v3-turbo and small: median
+// +149 ms, +133 ms with background noise); words start this much earlier
+static constexpr qint64 DtwLeadMs = 140;
+
+static QString wordKey(const QString &text)
+{
+    QString k;
+    for (const QChar ch : text)
+        if (ch.isLetterOrNumber())
+            k += ch.toLower();
+    return k;
+}
+
+QList<Word> collapseRepeats(const QList<Word> &words)
+{
+    QStringList keys;
+    keys.reserve(words.size());
+    for (const Word &w : words)
+        keys << wordKey(w.text);
+    QList<bool> keep(words.size(), true);
+    int i = 0;
+    while (i < words.size()) {
+        bool collapsed = false;
+        for (int n = 1; n <= 12 && !collapsed; ++n) { // the shortest period first
+            if (i + 2 * n > words.size())
+                continue;
+            // the phrase keys[i, i+n) and how many times it follows itself
+            bool hasText = false;
+            for (int k = 0; k < n; ++k)
+                hasText |= !keys.at(i + k).isEmpty();
+            if (!hasText)
+                continue;
+            int copies = 1;
+            for (int j = i + n; j + n <= words.size(); j += n) {
+                bool same = true;
+                for (int k = 0; k < n && same; ++k)
+                    same = keys.at(j + k) == keys.at(i + k);
+                if (!same)
+                    break;
+                ++copies;
+            }
+            if (copies >= (n == 1 ? 4 : 3)) {
+                for (int j = i + n; j < i + copies * n; ++j)
+                    keep[j] = false;
+                i += copies * n;
+                collapsed = true;
+            }
+        }
+        if (!collapsed)
+            ++i;
+    }
+    QList<Word> out;
+    for (int j = 0; j < words.size(); ++j)
+        if (keep.at(j))
+            out.append(words.at(j));
+    return out;
+}
+
+static double repetitionOfKeys(const QStringList &keys)
+{
+    if (keys.size() < 6)
+        return 0;
+    QSet<QString> seen;
+    int repeated = 0, total = 0;
+    for (int i = 0; i + 2 < keys.size(); ++i) {
+        const QString g = keys.at(i) + QLatin1Char(' ') + keys.at(i + 1) + QLatin1Char(' ') + keys.at(i + 2);
+        ++total;
+        if (seen.contains(g))
+            ++repeated;
+        else
+            seen.insert(g);
+    }
+    return total ? double(repeated) / total : 0;
+}
+
+double repetition(const QList<Word> &words)
+{
+    QStringList keys;
+    for (const Word &w : words) {
+        const QString k = wordKey(w.text);
+        if (!k.isEmpty())
+            keys << k;
+    }
+    return repetitionOfKeys(keys);
+}
+
+double repetition(const QString &text)
+{
+    QStringList keys;
+    for (const QString &w : text.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts)) {
+        const QString k = wordKey(w);
+        if (!k.isEmpty())
+            keys << k;
+    }
+    return repetitionOfKeys(keys);
+}
+
 Transcript parseWhisperCppJson(const QByteArray &json)
 {
     Transcript t;
@@ -112,6 +210,12 @@ Transcript parseWhisperCppJson(const QByteArray &json)
         const qint64 segTo = segOff.value(QStringLiteral("to")).toInteger();
         const QString segText = seg.value(QStringLiteral("text")).toString();
         const QJsonArray tokens = seg.value(QStringLiteral("tokens")).toArray();
+        // With -dtw every token has a time from the cross-attention alignment
+        // (t_dtw, centiseconds): far steadier than the offsets, which whisper.cpp
+        // often spreads evenly over the segment
+        bool dtw = false;
+        for (const QJsonValue &tv : tokens)
+            dtw |= tv.toObject().value(QStringLiteral("t_dtw")).toInteger(-1) >= 0;
         QList<Word> words;
         for (const QJsonValue &tv : tokens) {
             const QJsonObject tok = tv.toObject();
@@ -119,14 +223,27 @@ Transcript parseWhisperCppJson(const QByteArray &json)
             if (text.isEmpty() || (text.startsWith(QLatin1String("[_")) && text.endsWith(QLatin1Char(']'))))
                 continue;
             const QJsonObject off = tok.value(QStringLiteral("offsets")).toObject();
-            const qint64 from = off.value(QStringLiteral("from")).toInteger();
-            const qint64 to = off.value(QStringLiteral("to")).toInteger();
+            qint64 from = off.value(QStringLiteral("from")).toInteger();
+            qint64 to = off.value(QStringLiteral("to")).toInteger();
+            if (dtw) {
+                const qint64 t = tok.value(QStringLiteral("t_dtw")).toInteger(-1);
+                if (t < 0)
+                    continue;
+                from = to = std::max<qint64>(0, t * 10 - DtwLeadMs);
+            }
             const bool starts = text.at(0).isSpace() || words.isEmpty();
             if (starts && !(isPunctuationOnly(text.trimmed()) && !words.isEmpty())) {
                 words.append({from, to, text.trimmed()});
             } else {
                 words.last().text += text.trimmed();
                 words.last().endMs = std::max(words.last().endMs, to);
+            }
+        }
+        if (dtw) {
+            // a word lasts until the next one starts (within the segment)
+            for (int i = 0; i < words.size(); ++i) {
+                const qint64 next = i + 1 < words.size() ? words.at(i + 1).startMs : std::max(words.at(i).startMs + 300, std::min(segTo, words.at(i).startMs + 900));
+                words[i].endMs = std::max(words.at(i).startMs + 60, std::min(next, words.at(i).startMs + 1500));
             }
         }
         // Spelling from the segment text when it agrees (tokens can split UTF-8 sequences)
@@ -150,7 +267,7 @@ Transcript parseWhisperCppJson(const QByteArray &json)
             w.text.remove(QChar::ReplacementCharacter);
         all += merged;
     }
-    t.words = normalizeWords(all);
+    t.words = collapseRepeats(normalizeWords(all));
     return t;
 }
 
@@ -175,7 +292,7 @@ Transcript parseFasterWhisperJson(const QByteArray &json)
                         w.value(QStringLiteral("word")).toString().trimmed()});
         }
     }
-    t.words = normalizeWords(all);
+    t.words = collapseRepeats(normalizeWords(all));
     return t;
 }
 

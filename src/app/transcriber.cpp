@@ -21,7 +21,15 @@
 #include <QSaveFile>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QStorageInfo>
 #include <QThread>
+#include <QTimer>
+#include <QtConcurrent>
+
+#include <algorithm>
 
 using namespace Studio;
 
@@ -30,10 +38,16 @@ static QString tr(const char *s)
     return QCoreApplication::translate("Transcriber", s);
 }
 
+static const QString WhisperDownloadUrl = QStringLiteral("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-%1.bin");
+
 Transcriber::Transcriber(QObject *parent)
     : QObject(parent)
+    , m_tick(new QTimer(this))
 {
-    refresh();
+    m_tick->setInterval(1000);
+    connect(m_tick, &QTimer::timeout, this, &Transcriber::timingChanged);
+    refresh(); // the hardware probe runs in the background
+
 }
 
 QString Transcriber::modelsDir()
@@ -49,7 +63,7 @@ static QString findProgram(const QString &name)
     return p;
 }
 
-Transcriber::Engine Transcriber::detect(QString *problem, bool *programFound)
+Transcriber::Engine Transcriber::detect(QString *problem, bool *programFound, const QString &modelOverride, const WhisperHw::Hardware *hw)
 {
     // Lingmo Settings › AI writes these (older builds used an [ai] group)
     QSettings ai(QStringLiteral("lingmoos"), QStringLiteral("ai"));
@@ -58,10 +72,12 @@ Transcriber::Engine Transcriber::detect(QString *problem, bool *programFound)
         return plain.isEmpty() ? ai.value(QStringLiteral("ai/") + QLatin1String(key)).toString() : plain;
     };
     const QString backend = value("subtitle_backend");
-    const QString model = value("subtitle_model");
+    const QString configured = value("subtitle_model");
+    const QString model = modelOverride.isEmpty() ? configured : modelOverride;
     const QString lang = value("subtitle_language");
 
     Engine e;
+    e.configuredModel = configured;
     e.language = !lang.isEmpty() && lang != QLatin1String("auto") ? lang
         : QLocale().name().startsWith(QLatin1String("pt")) ? QStringLiteral("pt")
                                                           : QStringLiteral("auto");
@@ -96,6 +112,26 @@ Transcriber::Engine Transcriber::detect(QString *problem, bool *programFound)
             e.model = model;
             e.modelFile = dir.filePath(QStringLiteral("ggml-%1.bin").arg(model));
             return e;
+        }
+        // A downloaded model: the best one that isn't too heavy for this
+        // computer, else the lightest one
+        if (hw) {
+            const QStringList files = dir.entryList({QStringLiteral("ggml-*.bin")}, QDir::Files);
+            QString best, lightest;
+            for (const WhisperHw::Model &m : WhisperHw::catalogue()) {
+                if (!files.contains(QStringLiteral("ggml-%1.bin").arg(m.name)))
+                    continue;
+                if (lightest.isEmpty())
+                    lightest = m.name;
+                if (!WhisperHw::tooHeavy(m.name, *hw))
+                    best = m.name;
+            }
+            const QString pick = best.isEmpty() ? lightest : best;
+            if (!pick.isEmpty()) {
+                e.model = pick;
+                e.modelFile = dir.filePath(QStringLiteral("ggml-%1.bin").arg(pick));
+                return e;
+            }
         }
         // any downloaded model, then the places older setups used
         QStringList dirs = {modelsDir()};
@@ -132,18 +168,151 @@ void Transcriber::refresh()
 {
     QString problem;
     bool found = false;
-    const Engine e = detect(&problem, &found);
+    const Engine e = detect(&problem, &found, m_override, m_recommendation.model.isEmpty() ? nullptr : &m_hw);
     m_engine = e;
     m_problem = e.available() ? QString() : problem;
     m_programFound = found;
     Q_EMIT engineChanged();
+    Q_EMIT hardwareChanged();
+    probeAsync();
 }
 
-QStringList Transcriber::arguments(const Engine &e, const QString &wav, const QString &outBase, int threads)
+// The GPU, its backend and the processor, again each time: ggml-cuda may have
+// been installed since
+void Transcriber::probeAsync()
+{
+    if (m_fixedHardware || m_probe)
+        return;
+    auto *watcher = new QFutureWatcher<WhisperHw::Hardware>(this);
+    m_probe = watcher;
+    connect(watcher, &QFutureWatcher<WhisperHw::Hardware>::finished, this, [this, watcher] {
+        watcher->deleteLater();
+        const WhisperHw::Hardware hw = watcher->result();
+        m_probe = nullptr;
+        if (!m_fixedHardware)
+            applyHardware(hw);
+        else
+            Q_EMIT hardwareChanged();
+    });
+    watcher->setFuture(QtConcurrent::run([] { return WhisperHw::probe(); }));
+    Q_EMIT hardwareChanged();
+}
+
+void Transcriber::applyHardware(const WhisperHw::Hardware &hw)
+{
+    m_hw = hw;
+    m_recommendation = WhisperHw::recommend(hw);
+    QString problem;
+    bool found = false;
+    m_engine = detect(&problem, &found, m_override, &m_hw);
+    m_problem = m_engine.available() ? QString() : problem;
+    m_programFound = found;
+    Q_EMIT engineChanged();
+    Q_EMIT hardwareChanged();
+}
+
+void Transcriber::setHardware(const WhisperHw::Hardware &hw)
+{
+    m_fixedHardware = true;
+    applyHardware(hw);
+}
+
+QString Transcriber::device() const
+{
+    if (!m_hw.gpuUsable())
+        return QStringLiteral("CPU");
+    return m_hw.gpuName.isEmpty() ? WhisperHw::vendorDisplayName(m_hw.gpuVendor) : m_hw.gpuName;
+}
+
+QString Transcriber::summary() const
+{
+    if (m_engine.model.isEmpty())
+        return {};
+    if (m_engine.kind != QLatin1String("whisper.cpp"))
+        return m_engine.model; // faster-whisper picks its own device
+    QStringList parts = {m_engine.model, device()};
+    const QString speed = speedText();
+    if (!speed.isEmpty())
+        parts << speed;
+    return parts.join(QStringLiteral(" · "));
+}
+
+QString Transcriber::speedText() const
+{
+    if (m_engine.kind != QLatin1String("whisper.cpp"))
+        return {};
+    return WhisperHw::speedText(WhisperHw::estimatedSpeed(m_engine.model, m_hw));
+}
+
+bool Transcriber::unsuitable() const
+{
+    return m_engine.kind == QLatin1String("whisper.cpp") && !m_engine.model.isEmpty() && !m_recommendation.model.isEmpty()
+        && WhisperHw::tooHeavy(m_engine.model, m_hw);
+}
+
+QString Transcriber::recommendedSummary() const
+{
+    const WhisperHw::Recommendation &r = m_recommendation;
+    if (r.model.isEmpty())
+        return {};
+    QStringList parts = {r.model, r.device};
+    const QString speed = WhisperHw::speedText(WhisperHw::estimatedSpeed(r.model, m_hw, r.gpu));
+    if (!speed.isEmpty())
+        parts << speed;
+    return parts.join(QStringLiteral(" · "));
+}
+
+bool Transcriber::recommendedInstalled() const
+{
+    return !m_recommendation.model.isEmpty() && QDir(modelsDir()).exists(QStringLiteral("ggml-%1.bin").arg(m_recommendation.model));
+}
+
+void Transcriber::setModelOverride(const QString &name)
+{
+    if (name == m_override || (!name.isEmpty() && !WhisperHw::findModel(name)))
+        return;
+    m_override = name;
+    refresh();
+}
+
+QVariantList Transcriber::modelChoices() const
+{
+    const QDir dir(modelsDir());
+    QVariantList list;
+    for (const WhisperHw::Model &m : WhisperHw::catalogue()) {
+        const bool installed = dir.exists(QStringLiteral("ggml-%1.bin").arg(m.name));
+        const bool recommended = m.name == m_recommendation.model;
+        if (!installed && !recommended)
+            continue;
+        const bool heavy = WhisperHw::tooHeavy(m.name, m_hw);
+        QStringList notes;
+        if (recommended)
+            notes << tr("recommended");
+        if (!installed)
+            notes << tr("download %1").arg(QLocale().formattedDataSize(m.bytes, 1, QLocale::DataSizeSIFormat));
+        if (heavy)
+            notes << tr("slow here");
+        const QString speed = WhisperHw::speedText(WhisperHw::estimatedSpeed(m.name, m_hw));
+        if (!speed.isEmpty())
+            notes << speed;
+        list.append(QVariantMap{
+            {QStringLiteral("name"), m.name},
+            {QStringLiteral("installed"), installed},
+            {QStringLiteral("recommended"), recommended},
+            {QStringLiteral("tooHeavy"), heavy},
+            {QStringLiteral("label"), notes.isEmpty() ? m.name : QStringLiteral("%1 (%2)").arg(m.name, notes.join(QStringLiteral(", ")))},
+        });
+    }
+    return list;
+}
+
+QStringList Transcriber::arguments(const Engine &e, const QString &wav, const QString &outBase, const WhisperHw::Hardware &hw)
 {
     if (e.kind == QLatin1String("whisper.cpp"))
-        return {QStringLiteral("-m"), e.modelFile, QStringLiteral("-f"), wav, QStringLiteral("-l"), e.language.isEmpty() ? QStringLiteral("auto") : e.language,
-                QStringLiteral("-t"), QString::number(threads), QStringLiteral("-ojf"), QStringLiteral("-of"), outBase, QStringLiteral("-pp"), QStringLiteral("-np")};
+        return QStringList{QStringLiteral("-m"), e.modelFile, QStringLiteral("-f"), wav, QStringLiteral("-l"), e.language.isEmpty() ? QStringLiteral("auto") : e.language,
+                           QStringLiteral("-ojf"), QStringLiteral("-of"), outBase, QStringLiteral("-pp"), QStringLiteral("-np")}
+            + WhisperHw::runArguments(hw, hw.gpuUsable(), e.model.isEmpty() ? QFileInfo(e.modelFile).completeBaseName().mid(5) : e.model);
+    const int threads = WhisperHw::threadCount(hw, false);
     if (e.kind == QLatin1String("faster-whisper")) {
         QStringList a = {wav, QStringLiteral("--model"), e.model, QStringLiteral("--output_format"), QStringLiteral("json"),
                          QStringLiteral("--output_dir"), QFileInfo(outBase).absolutePath(), QStringLiteral("--word_timestamps"), QStringLiteral("True"),
@@ -171,11 +340,63 @@ double Transcriber::parseProgress(const QString &line, double durationSec)
     return -1;
 }
 
+double Transcriber::remaining(double elapsedSec, double progress, double audioSec, double estimatedSpeed)
+{
+    if (progress >= 1)
+        return 0;
+    // From the pace so far once whisper has done a little
+    if (progress >= 0.05 && elapsedSec > 0)
+        return elapsedSec * (1 - progress) / progress;
+    if (audioSec > 0 && estimatedSpeed > 0) {
+        const double total = audioSec / estimatedSpeed;
+        return std::max(total * (1 - std::max(0.0, progress)), total - elapsedSec);
+    }
+    return -1;
+}
+
+QString Transcriber::clockText(double seconds)
+{
+    const qint64 s = std::max<qint64>(0, qint64(std::llround(seconds)));
+    if (s >= 3600)
+        return QStringLiteral("%1:%2:%3").arg(s / 3600).arg(s / 60 % 60, 2, 10, QLatin1Char('0')).arg(s % 60, 2, 10, QLatin1Char('0'));
+    return QStringLiteral("%1:%2").arg(s / 60).arg(s % 60, 2, 10, QLatin1Char('0'));
+}
+
+double Transcriber::elapsedSeconds() const
+{
+    return running() && m_clock.isValid() ? m_clock.elapsed() / 1000.0 : 0;
+}
+
+double Transcriber::remainingSeconds() const
+{
+    if (!running() || m_firstProgressAt < 0)
+        return -1; // still extracting the audio
+    return remaining(elapsedSeconds() - m_firstProgressAt, m_progress, m_mediaSeconds,
+                     m_engine.kind == QLatin1String("whisper.cpp") ? WhisperHw::estimatedSpeed(m_engine.model, m_hw) : 0);
+}
+
+QString Transcriber::timing() const
+{
+    if (!running())
+        return {};
+    QStringList parts;
+    if (m_progress >= 0)
+        parts << tr("%1%").arg(int(m_progress * 100));
+    parts << tr("%1 elapsed").arg(clockText(elapsedSeconds()));
+    const double left = remainingSeconds();
+    if (left >= 0)
+        parts << tr("~%1 left").arg(clockText(left));
+    if (m_mediaSeconds > 0)
+        parts << tr("%1 of audio").arg(clockText(m_mediaSeconds));
+    return parts.join(QStringLiteral(" · "));
+}
+
 void Transcriber::setProgress(double p, const QString &stage)
 {
     m_progress = p;
     m_stage = stage;
     Q_EMIT progressChanged();
+    Q_EMIT timingChanged();
 }
 
 QString Transcriber::cacheFile() const
@@ -187,7 +408,8 @@ QString Transcriber::cacheFile() const
                             .arg(fi.lastModified().toMSecsSinceEpoch())
                             .arg(m_start)
                             .arg(m_duration)
-                            .arg(m_engine.kind, m_engine.model, m_engine.language);
+                            .arg(m_engine.kind, m_engine.model, m_engine.language)
+                        + QStringLiteral("|v3"); // v3: no text context, loops collapsed, DTW word times
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/transcripts");
     QDir().mkpath(dir);
     return QDir(dir).filePath(QString::fromLatin1(QCryptographicHash::hash(key.toUtf8(), QCryptographicHash::Sha1).toHex()) + QStringLiteral(".json"));
@@ -204,6 +426,13 @@ void Transcriber::transcribe(const QString &path, qint64 startMs, qint64 duratio
     m_duration = durationMs;
     m_result = {};
     m_log.clear();
+    m_mediaSeconds = 0;
+    m_firstProgressAt = -2; // extracting the audio
+    m_clock.start();
+    m_tick->start();
+    // The hardware as it is now (a GPU backend may have been installed)
+    if (!m_fixedHardware)
+        applyHardware(WhisperHw::probe());
     Q_EMIT runningChanged();
     if (!m_engine.available()) {
         finish(m_problem.isEmpty() ? tr("No transcription engine is installed.") : m_problem);
@@ -212,6 +441,7 @@ void Transcriber::transcribe(const QString &path, qint64 startMs, qint64 duratio
     QFile cached(cacheFile());
     if (cached.open(QIODevice::ReadOnly)) {
         m_result = Captions::transcriptFromJson(cached.readAll());
+        m_result.words = Captions::collapseRepeats(m_result.words); // caches from before the loop filter
         if (!m_result.isEmpty()) {
             setProgress(1, tr("Transcript ready"));
             finish({});
@@ -256,8 +486,10 @@ void Transcriber::runWhisper()
 {
     const QString wav = m_dir->filePath(QStringLiteral("speech.wav"));
     const QString base = m_dir->filePath(QStringLiteral("speech"));
-    const int threads = std::clamp(QThread::idealThreadCount() - 1, 1, 8);
-    setProgress(0, tr("Transcribing on this computer (%1, %2)…").arg(m_engine.kind, m_engine.model));
+    m_firstProgressAt = elapsedSeconds(); // whisper starts now: its pace gives the time left
+    setProgress(0, m_engine.kind == QLatin1String("whisper.cpp")
+                       ? tr("Transcribing with %1 on %2…").arg(m_engine.model, device())
+                       : tr("Transcribing on this computer (%1, %2)…").arg(m_engine.kind, m_engine.model));
     m_process = new QProcess(this);
     m_process->setProcessChannelMode(QProcess::MergedChannels);
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -313,7 +545,7 @@ void Transcriber::runWhisper()
         if (e == QProcess::FailedToStart)
             finish(tr("%1 could not be started").arg(m_engine.program));
     });
-    m_process->start(m_engine.program, arguments(m_engine, wav, base, threads));
+    m_process->start(m_engine.program, arguments(m_engine, wav, base, m_hw));
 }
 
 void Transcriber::cancel()
@@ -331,6 +563,7 @@ void Transcriber::cancel()
     const QString task = m_task;
     m_task.clear();
     m_dir.reset();
+    m_tick->stop();
     setProgress(-1, QString());
     Q_EMIT runningChanged();
     Q_EMIT failed(task, tr("Cancelled"));
@@ -341,7 +574,9 @@ void Transcriber::finish(const QString &error)
     const QString task = m_task;
     m_task.clear();
     m_dir.reset();
+    m_tick->stop();
     Q_EMIT runningChanged();
+    Q_EMIT timingChanged();
     if (error.isEmpty())
         Q_EMIT finished(task);
     else
@@ -351,4 +586,217 @@ void Transcriber::finish(const QString &error)
 void Transcriber::openSettings() const
 {
     QProcess::startDetached(QStringLiteral("lingmo-settings"), {QStringLiteral("-m"), QStringLiteral("ai/transcription")});
+}
+
+// ------------------------------------------------------------------ models and GPU support
+
+void Transcriber::writeModelSetting(const QString &name)
+{
+    // The same key Lingmo Settings writes (its AI page reads it again when opened)
+    QSettings ai(QStringLiteral("lingmoos"), QStringLiteral("ai"));
+    ai.setValue(QStringLiteral("subtitle_model"), name);
+    ai.sync();
+}
+
+void Transcriber::useModel(const QString &name)
+{
+    if (!WhisperHw::findModel(name))
+        return;
+    if (!QDir(modelsDir()).exists(QStringLiteral("ggml-%1.bin").arg(name))) {
+        downloadModel(name);
+        m_useAfterDownload = downloading() && m_downloadName == name;
+        return;
+    }
+    writeModelSetting(name);
+    m_override.clear();
+    refresh();
+}
+
+void Transcriber::downloadModel(const QString &name)
+{
+    const WhisperHw::Model *model = WhisperHw::findModel(name);
+    if (!model || downloading())
+        return;
+    m_downloadError.clear();
+    m_useAfterDownload = false;
+    const QDir dir(modelsDir());
+    if (!dir.mkpath(QStringLiteral("."))) {
+        m_downloadError = tr("Could not create the folder %1.").arg(dir.absolutePath());
+        Q_EMIT downloadChanged();
+        return;
+    }
+    const QStorageInfo storage(dir.absolutePath());
+    if (storage.isValid() && storage.bytesAvailable() >= 0 && storage.bytesAvailable() < model->bytes + 50 * 1000 * 1000) {
+        m_downloadError = tr("There is not enough free disk space for %1.").arg(name);
+        Q_EMIT downloadChanged();
+        return;
+    }
+    auto *file = new QFile(dir.filePath(QStringLiteral("ggml-%1.bin.part").arg(name)), this);
+    if (!file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        m_downloadError = tr("Could not write to %1.").arg(file->fileName());
+        delete file;
+        Q_EMIT downloadChanged();
+        return;
+    }
+    if (!m_network)
+        m_network = new QNetworkAccessManager(this);
+    m_downloadFile = file;
+    m_downloadHash = new QCryptographicHash(QCryptographicHash::Sha256);
+    m_downloadName = name;
+    m_downloadProgress = -1;
+    m_downloadCancelled = false;
+    m_downloadDetail = tr("Contacting Hugging Face…");
+
+    QNetworkRequest request(QUrl(WhisperDownloadUrl.arg(name)));
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setMaximumRedirectsAllowed(10);
+    request.setTransferTimeout(60000);
+    m_reply = m_network->get(request);
+    connect(m_reply, &QNetworkReply::readyRead, this, [this] {
+        if (!m_reply || !m_downloadFile)
+            return;
+        const int status = m_reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QByteArray data = m_reply->readAll();
+        if (status != 200 || data.isEmpty())
+            return; // redirect bodies
+        if (m_downloadFile->write(data) != data.size()) {
+            m_downloadError = m_downloadFile->errorString();
+            m_reply->abort();
+            return;
+        }
+        m_downloadHash->addData(data);
+    });
+    connect(m_reply, &QNetworkReply::downloadProgress, this, [this](qint64 received, qint64 total) {
+        const WhisperHw::Model *m = WhisperHw::findModel(m_downloadName);
+        if (total <= 0 && m)
+            total = m->bytes;
+        if (received <= 0 || total <= 0)
+            return;
+        const QLocale locale;
+        m_downloadProgress = std::clamp(double(received) / double(total), 0.0, 1.0);
+        m_downloadDetail = tr("%1% · %2 of %3").arg(int(m_downloadProgress * 100))
+                               .arg(locale.formattedDataSize(received, 1, QLocale::DataSizeSIFormat),
+                                    locale.formattedDataSize(total, 1, QLocale::DataSizeSIFormat));
+        Q_EMIT downloadChanged();
+    });
+    connect(m_reply, &QNetworkReply::finished, this, &Transcriber::finishDownload);
+    Q_EMIT downloadChanged();
+}
+
+void Transcriber::cancelDownload()
+{
+    if (!m_reply)
+        return;
+    m_downloadCancelled = true;
+    m_reply->abort(); // finished() follows
+}
+
+void Transcriber::finishDownload()
+{
+    QNetworkReply *reply = m_reply;
+    if (!reply)
+        return;
+    if (m_downloadFile && reply->error() == QNetworkReply::NoError) {
+        const QByteArray rest = reply->readAll();
+        if (!rest.isEmpty() && reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 200) {
+            m_downloadFile->write(rest);
+            m_downloadHash->addData(rest);
+        }
+    }
+    reply->deleteLater();
+    m_reply = nullptr;
+
+    const QString name = m_downloadName;
+    const WhisperHw::Model *model = WhisperHw::findModel(name);
+    const QString partPath = m_downloadFile->fileName();
+    m_downloadFile->close();
+    const qint64 written = m_downloadFile->size();
+    delete m_downloadFile;
+    m_downloadFile = nullptr;
+    const QString sha = QString::fromLatin1(m_downloadHash->result().toHex());
+    delete m_downloadHash;
+    m_downloadHash = nullptr;
+
+    bool ok = false;
+    if (m_downloadCancelled) {
+        m_downloadError.clear();
+    } else if (!m_downloadError.isEmpty()) {
+        m_downloadError = tr("Could not save %1: %2").arg(name, m_downloadError);
+    } else if (reply->error() != QNetworkReply::NoError) {
+        m_downloadError = tr("The download of %1 failed: %2").arg(name, reply->errorString());
+    } else if (!model || written != model->bytes) {
+        m_downloadError = tr("The download of %1 is incomplete. Try again.").arg(name);
+    } else if (sha != model->sha256) {
+        m_downloadError = tr("The downloaded %1 is damaged (its checksum doesn't match). Try again.").arg(name);
+    } else {
+        const QString finalPath = QDir(modelsDir()).filePath(QStringLiteral("ggml-%1.bin").arg(name));
+        QFile::remove(finalPath);
+        ok = QFile::rename(partPath, finalPath);
+        if (!ok)
+            m_downloadError = tr("Could not save %1.").arg(finalPath);
+    }
+    if (!ok)
+        QFile::remove(partPath);
+    m_downloadName.clear();
+    m_downloadProgress = -1;
+    m_downloadDetail.clear();
+    const bool use = ok && m_useAfterDownload;
+    m_useAfterDownload = false;
+    Q_EMIT downloadChanged();
+    if (use)
+        useModel(name);
+    else
+        refresh();
+}
+
+void Transcriber::installGpuSupport()
+{
+    const QString package = m_recommendation.upgradePackage;
+    if (package.isEmpty() || installing())
+        return;
+    const WhisperHw::Command command = WhisperHw::installCommand(package);
+    m_installFailed = false;
+    m_installMessage = tr("Installing %1…").arg(package);
+    m_install = new QProcess(this);
+    m_install->setProcessChannelMode(QProcess::MergedChannels);
+    auto output = std::make_shared<QString>();
+    connect(m_install, &QProcess::readyRead, this, [this, output] {
+        if (m_install)
+            output->append(QString::fromUtf8(m_install->readAll()));
+    });
+    connect(m_install, &QProcess::finished, this, [this, package, output](int code, QProcess::ExitStatus status) {
+        if (m_install)
+            output->append(QString::fromUtf8(m_install->readAll()));
+        const QString log = *output;
+        m_install->deleteLater();
+        m_install = nullptr;
+        if (status == QProcess::NormalExit && code == 0) {
+            m_installMessage = tr("%1 is installed. Transcription now uses the graphics card.").arg(package);
+        } else {
+            m_installFailed = true;
+            if (code == 126 || code == 127) // pkexec: dismissed or not authorised
+                m_installMessage = tr("The installation of %1 was cancelled.").arg(package);
+            else if (log.contains(QLatin1String("@@ERROR lock")))
+                m_installMessage = tr("Another program is installing software. Try again when it finishes.");
+            else
+                m_installMessage = tr("Could not install %1. Install it from Lingmo Store or with “sudo pacman -S %1”.").arg(package);
+        }
+        Q_EMIT installChanged();
+        // Probe again: the GPU backend should be there now
+        if (m_fixedHardware)
+            applyHardware(m_hw);
+        else
+            probeAsync();
+    });
+    connect(m_install, &QProcess::errorOccurred, this, [this, package](QProcess::ProcessError e) {
+        if (e != QProcess::FailedToStart || !m_install)
+            return;
+        m_install->deleteLater();
+        m_install = nullptr;
+        m_installFailed = true;
+        m_installMessage = tr("Could not install %1. Install it from Lingmo Store or with “sudo pacman -S %1”.").arg(package);
+        Q_EMIT installChanged();
+    });
+    m_install->start(command.program, command.arguments);
+    Q_EMIT installChanged();
 }

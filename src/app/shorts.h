@@ -16,7 +16,10 @@
 //  4. the user picks and trims; each pick becomes a sequence (compound clip)
 //     with the video reframed to the platform, optionally with captions;
 //  5. subject tracking (OpenCV, optional) bakes Position X keyframes;
-//  6. batch export, one file per cut and platform.
+//  6. batch export, one file per cut and platform, captions burned into the
+//     picture (a .srt next to it only when asked for), with per-cut progress.
+// The preview plays the source between the cut's edges with its captions on
+// top, rendered by libass from the same ASS the export uses (previewCaptions).
 
 #pragma once
 
@@ -26,6 +29,8 @@
 #include <QPointer>
 #include <QProcess>
 #include <QSet>
+#include <QSize>
+#include <QUrl>
 #include <QVariant>
 #include <functional>
 
@@ -57,6 +62,22 @@ class ShortsGenerator : public QObject
     Q_PROPERTY(bool opencvAvailable READ opencvAvailable NOTIFY toolsChanged)
     Q_PROPERTY(bool tracking READ tracking NOTIFY trackingChanged)
     Q_PROPERTY(int cutsMade READ cutsMade NOTIFY cutsChanged)
+    // Export of the generated cuts
+    Q_PROPERTY(QString exportFolder READ exportFolder WRITE setExportFolder NOTIFY exportChanged)
+    Q_PROPERTY(QUrl exportFolderUrl READ exportFolderUrl NOTIFY exportChanged)
+    // "video" (burned in, the default), "video+srt" or "srt"; back to "video" for each export
+    Q_PROPERTY(QString captionOutput READ captionOutput WRITE setCaptionOutput NOTIFY exportChanged)
+    // Per generated cut: {id, name, duration, platforms, state, progress, files: [{platform, name, output, state, progress}]}
+    Q_PROPERTY(QVariantList cuts READ cuts NOTIFY exportChanged)
+    Q_PROPERTY(bool exporting READ exporting NOTIFY exportChanged)          // queued or rendering (or waiting for face tracking)
+    Q_PROPERTY(bool exportDone READ exportDone NOTIFY exportChanged)        // the last export finished
+    Q_PROPERTY(int exportFailed READ exportFailed NOTIFY exportChanged)
+    Q_PROPERTY(double exportProgress READ exportProgress NOTIFY exportChanged)
+    Q_PROPERTY(QString exportSummary READ exportSummary NOTIFY exportChanged)
+    // The captions of the cut being previewed: an ASS file in source time, the
+    // platform's frame size (the overlay and the video fill that shape)
+    Q_PROPERTY(QString previewCaptions READ previewCaptions NOTIFY previewChanged)
+    Q_PROPERTY(QSize previewSize READ previewSize NOTIFY previewChanged)
 
 public:
     explicit ShortsGenerator(Editor *editor);
@@ -89,6 +110,25 @@ public:
     bool opencvAvailable() const { return m_opencv; }
     bool tracking() const { return !m_trackQueue.isEmpty() || m_trackProcess; }
     int cutsMade() const { return m_cutsMade; }
+    QString exportFolder() const { return m_exportFolder; }
+    void setExportFolder(const QString &folder);
+    QUrl exportFolderUrl() const;
+    QString captionOutput() const { return m_captionOutput; }
+    void setCaptionOutput(const QString &mode);
+    QVariantList cuts() const;
+    bool exporting() const;
+    bool exportDone() const;
+    int exportFailed() const;
+    double exportProgress() const;
+    QString exportSummary() const;
+    QString previewCaptions() const { return m_previewAss; }
+    QSize previewSize() const { return m_previewSize; }
+    // The captions a cut of [startMs, endMs) gets, as an ASS script in the
+    // source's time (what the preview draws over the source); "" = none
+    QString previewCaptionsFor(qint64 startMs, qint64 endMs) const;
+    const Studio::Captions::Transcript &transcript() const { return m_transcript; }
+    // The cut's words, relative to its start, as createShorts lays them out
+    static QList<Studio::Captions::Word> wordsInRange(const QList<Studio::Captions::Word> &words, qint64 startMs, qint64 endMs);
 
     Q_INVOKABLE void togglePlatform(const QString &id);
     Q_INVOKABLE void analyze();
@@ -100,7 +140,16 @@ public:
     Q_INVOKABLE void stopPreview();
     // Creates a sequence per selected candidate; returns how many
     Q_INVOKABLE int createCuts();
-    Q_INVOKABLE void exportCuts(const QUrl &folder);
+    // Queues the generated cuts (creating the selected ones first when none
+    // exist yet); waits for face tracking. Empty folder = exportFolder.
+    Q_INVOKABLE void exportCuts(const QUrl &folder = QUrl(), const QString &captions = QStringLiteral("video"));
+    Q_INVOKABLE void openExportFolder() const;
+    // One generated cut: export it alone, or play it (the source between its
+    // edges with its caption track drawn on top)
+    Q_INVOKABLE void exportCut(const QString &sequenceId, const QString &captions = QStringLiteral("video"));
+    Q_INVOKABLE void previewCut(const QString &sequenceId);
+    // Opens a generated cut's sequence on the timeline
+    Q_INVOKABLE bool editCut(const QString &sequenceId);
     Q_INVOKABLE QString formatTime(qint64 ms) const;
     // Media with speech in the project: [{id, name, duration, video}]
     Q_INVOKABLE QVariantList mediaChoices() const;
@@ -117,6 +166,8 @@ Q_SIGNALS:
     void trackingChanged();
     void cutsChanged();
     void analysisFinished();
+    void exportChanged();
+    void previewChanged();
 
 private:
     void setState(const QString &stage, double progress);
@@ -129,6 +180,9 @@ private:
     void finishAnalysis();
     void trackNext();
     const Studio::MediaItem *media() const;
+    void startExport();
+    void syncExports();
+    void setPreviewCaptions(const Studio::Highlights::Candidate *c);
 
     Editor *m_editor;
     QStringList m_platforms;
@@ -168,4 +222,21 @@ private:
     QPointer<QProcess> m_trackProcess;
     QPointer<QProcess> m_probe;
     int m_cutsMade = 0;
+
+    struct ExportJob {
+        QString sequenceId;
+        QString platform;
+        QString output;
+        QString state = QStringLiteral("queued");
+        int progress = 0;
+    };
+    QList<ExportJob> m_exports; // the last batch
+    QStringList m_exportOnly;   // the sequences of the pending export ("" = all)
+    QString m_trackingSequence; // the cut whose faces are being followed
+    QString m_exportFolder;
+    QString m_captionOutput = QStringLiteral("video");
+    bool m_exportPending = false; // waits for face tracking
+    QString m_pendingCaptions;
+    QString m_previewAss;
+    QSize m_previewSize{1080, 1920};
 };

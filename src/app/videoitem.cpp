@@ -61,6 +61,24 @@ void VideoItem::setSplit(double s)
     Q_EMIT splitChanged();
 }
 
+void VideoItem::setContentAspect(double a)
+{
+    if (qFuzzyCompare(a, m_contentAspect))
+        return;
+    m_contentAspect = a;
+    update();
+    Q_EMIT contentAspectChanged();
+}
+
+void VideoItem::setFill(bool on)
+{
+    if (on == m_fill)
+        return;
+    m_fill = on;
+    update();
+    Q_EMIT fillChanged();
+}
+
 void VideoItem::frameReady()
 {
     if (!m_editor)
@@ -133,6 +151,27 @@ QSGNode *VideoItem::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
         before->setSourceRect(QRectF(0, 0, m_before.width() * m_split, m_before.height()));
         after->setRect(QRectF(rect.x() + cut, rect.y(), rect.width() - cut, rect.height()));
         after->setSourceRect(QRectF(img.width() * m_split, 0, img.width() * (1 - m_split), img.height()));
+    } else if (m_fill && width() > 0 && height() > 0) {
+        // the picture inside the frame, then its centre in the item's shape
+        QRectF content(QPointF(0, 0), img);
+        if (m_contentAspect > 0) {
+            const double frameAspect = img.width() / img.height();
+            if (m_contentAspect > frameAspect)
+                content.setHeight(img.width() / m_contentAspect);
+            else
+                content.setWidth(img.height() * m_contentAspect);
+            content.moveCenter(QPointF(img.width() / 2, img.height() / 2));
+        }
+        const double itemAspect = width() / height();
+        QRectF crop = content;
+        if (content.width() / content.height() > itemAspect)
+            crop.setWidth(content.height() * itemAspect);
+        else
+            crop.setHeight(content.width() / itemAspect);
+        crop.moveCenter(content.center());
+        after->setRect(QRectF(0, 0, width(), height()));
+        after->setSourceRect(crop);
+        before->setRect(QRectF());
     } else {
         after->setRect(rect);
         after->setSourceRect(QRectF(QPointF(0, 0), img));

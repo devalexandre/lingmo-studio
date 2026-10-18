@@ -12,9 +12,13 @@
 #include "platforms.h"
 #include "player.h"
 #include "reframe.h"
+#include "renderqueue.h"
 #include "transcriber.h"
 
 #include <QCoreApplication>
+#include <QDesktopServices>
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -54,6 +58,7 @@ ShortsGenerator::ShortsGenerator(Editor *editor)
         if (task != QLatin1String("shorts") || !m_running)
             return;
         m_transcript = m_editor->transcriber()->result();
+        m_editor->rememberWords(m_mediaId, m_transcript.words);
         runAnalysisTools();
     });
     connect(m_editor->transcriber(), &Transcriber::failed, this, [this](const QString &task, const QString &message) {
@@ -77,6 +82,23 @@ ShortsGenerator::ShortsGenerator(Editor *editor)
             probe->deleteLater();
     });
     probe->start(QStringLiteral("python3"), {QStringLiteral("-c"), QStringLiteral("import cv2")});
+
+    m_exportFolder = QSettings().value(QStringLiteral("shorts/exportFolder")).toString();
+    if (m_exportFolder.isEmpty())
+        m_exportFolder = Editor::defaultShortsFolder();
+    // per-cut export progress from the render queue
+    auto *queue = static_cast<RenderQueue *>(m_editor->renderQueueObject());
+    connect(queue, &QAbstractItemModel::dataChanged, this, &ShortsGenerator::syncExports);
+    connect(queue, &QAbstractItemModel::rowsInserted, this, &ShortsGenerator::syncExports);
+    connect(queue, &QAbstractItemModel::rowsRemoved, this, &ShortsGenerator::syncExports);
+    connect(queue, &RenderQueue::jobFinished, this, &ShortsGenerator::syncExports);
+    connect(m_editor, &Editor::documentChanged, this, &ShortsGenerator::exportChanged);
+    connect(this, &ShortsGenerator::trackingChanged, this, &ShortsGenerator::exportChanged); // "reframing" on the cuts
+    // an export asked for while faces were being followed starts afterwards
+    connect(this, &ShortsGenerator::trackingChanged, this, [this] {
+        if (m_exportPending && !tracking())
+            startExport();
+    });
 }
 
 ShortsGenerator::~ShortsGenerator()
@@ -224,7 +246,8 @@ QVariantList ShortsGenerator::mediaChoices() const
         list.append(QVariantMap{{QStringLiteral("id"), m.id},
                                 {QStringLiteral("name"), m.name},
                                 {QStringLiteral("duration"), formatTime(qint64(m.length * 1000.0 / m_editor->fps()))},
-                                {QStringLiteral("video"), m.hasVideo}});
+                                {QStringLiteral("video"), m.hasVideo},
+                                {QStringLiteral("aspect"), m.hasVideo && m.width > 0 && m.height > 0 ? double(m.width) / m.height : 0.0}});
     }
     return list;
 }
@@ -303,6 +326,7 @@ void ShortsGenerator::analyze()
     Q_EMIT candidatesChanged();
     m_running = true;
     if (m_testData) {
+        m_editor->rememberWords(m_mediaId, m_transcript.words);
         buildCandidates();
         return;
     }
@@ -467,7 +491,7 @@ void ShortsGenerator::scoreNext()
             if (s.ok && m_scoreIndex < m_pool.size()) {
                 Highlights::Candidate &c = m_pool[m_scoreIndex];
                 c.llmScore = s.score;
-                c.score = Highlights::combine(c.heuristic, s.score);
+                c.score = Highlights::penaliseRepetition(Highlights::combine(c.heuristic, s.score), c.text);
                 if (!s.title.isEmpty())
                     c.title = s.title;
                 c.reason = s.reason;
@@ -592,6 +616,7 @@ void ShortsGenerator::preview(const QString &id)
             p->openSource(m->id, m->path, m->length);
         const int in = int(std::lround(c.startMs * m_editor->fps() / 1000.0));
         const int out = int(std::lround(c.endMs * m_editor->fps() / 1000.0));
+        setPreviewCaptions(&c);
         p->setMode(QStringLiteral("source"));
         p->setSourceIn(in);
         p->setSourceOut(out);
@@ -606,6 +631,59 @@ void ShortsGenerator::stopPreview()
     Player *p = m_editor->player();
     p->pause();
     p->setMode(QStringLiteral("timeline"));
+    setPreviewCaptions(nullptr);
+}
+
+QList<Captions::Word> ShortsGenerator::wordsInRange(const QList<Captions::Word> &words, qint64 startMs, qint64 endMs)
+{
+    QList<Captions::Word> local;
+    for (Captions::Word w : words) {
+        const qint64 mid = (w.startMs + w.endMs) / 2;
+        if (mid < startMs || mid >= endMs)
+            continue;
+        w.startMs = std::max<qint64>(0, w.startMs - startMs);
+        w.endMs = std::min<qint64>(endMs - startMs, w.endMs - startMs);
+        local.append(w);
+    }
+    return local;
+}
+
+// The caption track the cut will get (Editor::shortCaptionTrack, the same
+// style, safe area, frame size and frame rate), as an ASS script in the
+// source's time so it plays over the source between the cut's edges
+QString ShortsGenerator::previewCaptionsFor(qint64 startMs, qint64 endMs) const
+{
+    if (!m_captions || m_style.isEmpty() || m_transcript.words.isEmpty())
+        return {};
+    const Platform platform = Platforms::primary(m_platforms);
+    const QSize size = platform.valid() ? QSize(platform.width, platform.height) : QSize(1080, 1920);
+    Captions::Style style = Captions::Style::preset(m_style);
+    style.safeArea = platform.safeArea;
+    const double fps = platform.valid() ? platform.fps : m_editor->fps();
+    const int length = int(std::lround(endMs * fps / 1000.0)) - int(std::lround(startMs * fps / 1000.0));
+    const Track track = Editor::shortCaptionTrack(m_transcript.words, startMs, endMs, style, size.width(), size.height(), fps, length);
+    QList<Captions::Cue> cues = Captions::trackCues(track, fps, style, size.width(), size.height());
+    for (Captions::Cue &cue : cues) {
+        cue.startMs += startMs;
+        cue.endMs += startMs;
+        for (Captions::Word &w : cue.words) {
+            w.startMs += startMs;
+            w.endMs += startMs;
+        }
+    }
+    return cues.isEmpty() ? QString() : Editor::cacheCaptions(Captions::toAss(cues, style, size.width(), size.height(), fps));
+}
+
+void ShortsGenerator::setPreviewCaptions(const Highlights::Candidate *c)
+{
+    const Platform platform = Platforms::primary(m_platforms);
+    const QSize size = platform.valid() ? QSize(platform.width, platform.height) : QSize(1080, 1920);
+    const QString file = c ? previewCaptionsFor(c->startMs, c->endMs) : QString();
+    if (file != m_previewAss || size != m_previewSize) {
+        m_previewAss = file;
+        m_previewSize = size;
+        Q_EMIT previewChanged();
+    }
 }
 
 int ShortsGenerator::createCuts()
@@ -626,7 +704,13 @@ int ShortsGenerator::createCuts()
     const QList<QPair<QString, QString>> made =
         m_editor->createShorts(item, cuts, m_platforms, m_captions ? m_style : QString(), m_transcript.words);
     m_cutsMade = made.size();
+    // the cards became cuts: they move to "Your cuts"
+    m_candidates.erase(std::remove_if(m_candidates.begin(), m_candidates.end(),
+                                      [this](const Highlights::Candidate &c) { return !m_unselected.contains(c.id); }),
+                       m_candidates.end());
+    Q_EMIT candidatesChanged();
     Q_EMIT cutsChanged();
+    Q_EMIT exportChanged();
     if (m_reframe && m_opencv && item.hasVideo) {
         for (int i = 0; i < made.size() && i < cuts.size(); ++i)
             m_trackQueue.append({made.at(i).first, made.at(i).second, item.path, cuts.at(i).startMs / 1000.0, (cuts.at(i).endMs - cuts.at(i).startMs) / 1000.0});
@@ -639,10 +723,14 @@ int ShortsGenerator::createCuts()
 void ShortsGenerator::trackNext()
 {
     if (m_trackProcess || m_trackQueue.isEmpty()) {
+        if (!m_trackProcess)
+            m_trackingSequence.clear();
         Q_EMIT trackingChanged();
+        Q_EMIT exportChanged();
         return;
     }
     const TrackJob job = m_trackQueue.takeFirst();
+    m_trackingSequence = job.sequenceId;
     const QString script = Reframe::detectorScript();
     if (script.isEmpty()) {
         m_trackQueue.clear();
@@ -680,7 +768,273 @@ void ShortsGenerator::trackNext()
     Q_EMIT trackingChanged();
 }
 
-void ShortsGenerator::exportCuts(const QUrl &folder)
+// ------------------------------------------------------------------ export
+
+void ShortsGenerator::setExportFolder(const QString &folder)
 {
-    m_editor->exportShorts(folder);
+    QString f = folder;
+    if (f.startsWith(QLatin1String("file:")))
+        f = QUrl(f).toLocalFile();
+    if (f.isEmpty() || f == m_exportFolder)
+        return;
+    m_exportFolder = f;
+    QSettings().setValue(QStringLiteral("shorts/exportFolder"), f);
+    Q_EMIT exportChanged();
+}
+
+QUrl ShortsGenerator::exportFolderUrl() const
+{
+    return QUrl::fromLocalFile(m_exportFolder);
+}
+
+void ShortsGenerator::setCaptionOutput(const QString &mode)
+{
+    static const QStringList modes = {QStringLiteral("video"), QStringLiteral("video+srt"), QStringLiteral("srt")};
+    if (!modes.contains(mode) || mode == m_captionOutput)
+        return;
+    m_captionOutput = mode;
+    Q_EMIT exportChanged();
+}
+
+void ShortsGenerator::exportCuts(const QUrl &folder, const QString &captions)
+{
+    if (!folder.isEmpty())
+        setExportFolder(folder.isLocalFile() ? folder.toLocalFile() : folder.toString());
+    m_pendingCaptions = captions.isEmpty() ? m_captionOutput : captions;
+    m_exportOnly.clear();
+    // nothing generated yet: the selected cuts first
+    if (m_editor->shortSequences().isEmpty() && createCuts() == 0) {
+        m_editor->setStatus(tr("There are no generated cuts to export"));
+        return;
+    }
+    m_exportPending = true;
+    m_exports.clear();
+    Q_EMIT exportChanged();
+    if (!tracking())
+        startExport();
+}
+
+void ShortsGenerator::startExport()
+{
+    m_exportPending = false;
+    m_exports.clear();
+    for (const Editor::ShortExport &e : m_editor->exportShorts(QUrl::fromLocalFile(m_exportFolder), m_pendingCaptions, m_exportOnly))
+        m_exports.append({e.sequenceId, e.platform, e.output});
+    m_exportOnly.clear();
+    // the choice holds for this export only: the next one burns them in again
+    m_captionOutput = QStringLiteral("video");
+    syncExports();
+    Q_EMIT exportChanged();
+}
+
+void ShortsGenerator::syncExports()
+{
+    if (m_exports.isEmpty())
+        return;
+    auto *queue = static_cast<RenderQueue *>(m_editor->renderQueueObject());
+    QHash<QString, int> rows;
+    for (int r = 0; r < queue->rowCount(); ++r)
+        rows.insert(queue->data(queue->index(r), RenderQueue::OutputRole).toString(), r); // the latest wins
+    for (ExportJob &j : m_exports) {
+        const auto it = rows.constFind(j.output);
+        if (it == rows.constEnd())
+            continue; // removed from the queue: keep what was last seen
+        j.state = queue->data(queue->index(*it), RenderQueue::StateRole).toString();
+        j.progress = j.state == QLatin1String("done") ? 100 : queue->data(queue->index(*it), RenderQueue::ProgressRole).toInt();
+    }
+    Q_EMIT exportChanged();
+}
+
+static QString overallState(const QStringList &states)
+{
+    if (states.isEmpty())
+        return {};
+    if (states.contains(QLatin1String("running")))
+        return QStringLiteral("running");
+    if (states.contains(QLatin1String("queued")))
+        return QStringLiteral("queued");
+    if (states.contains(QLatin1String("failed")))
+        return QStringLiteral("failed");
+    if (states.contains(QLatin1String("cancelled")))
+        return QStringLiteral("cancelled");
+    return QStringLiteral("done");
+}
+
+QVariantList ShortsGenerator::cuts() const
+{
+    QVariantList list;
+    for (const QVariant &v : m_editor->shortSequences()) {
+        QVariantMap m = v.toMap();
+        const QString id = m.value(QStringLiteral("id")).toString();
+        QVariantList files;
+        QStringList states;
+        int progress = 0;
+        for (const ExportJob &j : m_exports) {
+            if (j.sequenceId != id)
+                continue;
+            files.append(QVariantMap{{QStringLiteral("platform"), j.platform},
+                                     {QStringLiteral("name"), Platforms::find(j.platform).name},
+                                     {QStringLiteral("output"), j.output},
+                                     {QStringLiteral("file"), QFileInfo(j.output).fileName()},
+                                     {QStringLiteral("state"), j.state},
+                                     {QStringLiteral("progress"), j.progress}});
+            states << j.state;
+            progress += j.progress;
+        }
+        QStringList platformNames;
+        for (const QString &pid : m.value(QStringLiteral("platforms")).toStringList())
+            platformNames << Platforms::find(pid).name;
+        m.insert(QStringLiteral("platformNames"), platformNames.join(QStringLiteral(", ")));
+        m.insert(QStringLiteral("length"), m_editor->formatDuration(m.value(QStringLiteral("duration")).toInt()));
+        m.insert(QStringLiteral("files"), files);
+        const bool reframing = id == m_trackingSequence || std::any_of(m_trackQueue.cbegin(), m_trackQueue.cend(), [&](const TrackJob &j) { return j.sequenceId == id; });
+        QString state = overallState(states);
+        if (m_exportPending && (m_exportOnly.isEmpty() || m_exportOnly.contains(id)))
+            state = QStringLiteral("queued");
+        if (state.isEmpty())
+            state = reframing ? QStringLiteral("reframing") : QStringLiteral("ready");
+        m.insert(QStringLiteral("state"), state);
+        m.insert(QStringLiteral("reframing"), reframing);
+        const double fps = m_editor->fps();
+        const qint64 s0 = m.value(QStringLiteral("startMs")).toLongLong(), s1 = m.value(QStringLiteral("endMs")).toLongLong();
+        m.insert(QStringLiteral("thumbnail"), QStringLiteral("image://thumb/%1/%2").arg(m.value(QStringLiteral("mediaId")).toString())
+                                                  .arg(int(std::lround((s0 + std::min<qint64>(1500, (s1 - s0) / 3)) * fps / 1000.0))));
+        m.insert(QStringLiteral("range"), formatTime(s0) + QStringLiteral(" – ") + formatTime(s1));
+        m.insert(QStringLiteral("progress"), files.isEmpty() ? 0.0 : progress / (100.0 * files.size()));
+        list.append(m);
+    }
+    return list;
+}
+
+bool ShortsGenerator::exporting() const
+{
+    if (m_exportPending)
+        return true;
+    for (const ExportJob &j : m_exports)
+        if (j.state == QLatin1String("queued") || j.state == QLatin1String("running"))
+            return true;
+    return false;
+}
+
+bool ShortsGenerator::exportDone() const
+{
+    return !m_exports.isEmpty() && !exporting();
+}
+
+int ShortsGenerator::exportFailed() const
+{
+    int n = 0;
+    for (const ExportJob &j : m_exports)
+        n += j.state == QLatin1String("failed") || j.state == QLatin1String("cancelled");
+    return n;
+}
+
+double ShortsGenerator::exportProgress() const
+{
+    if (m_exports.isEmpty())
+        return 0;
+    double sum = 0;
+    for (const ExportJob &j : m_exports)
+        sum += j.progress;
+    return sum / (100.0 * m_exports.size());
+}
+
+QString ShortsGenerator::exportSummary() const
+{
+    if (m_exportPending)
+        return tr("Waiting for the face tracking to finish…");
+    if (m_exports.isEmpty())
+        return {};
+    int done = 0;
+    for (const ExportJob &j : m_exports)
+        done += j.state == QLatin1String("done");
+    const int total = int(m_exports.size());
+    if (exporting())
+        return tr("Exporting %1 of %2 files · %3%").arg(std::min(total, done + 1)).arg(total).arg(int(exportProgress() * 100));
+    if (exportFailed() > 0)
+        return tr("%1 of %2 files exported; %3 failed (details in Deliver › Render Queue)").arg(done).arg(total).arg(exportFailed());
+    return tr("%n file(s) exported to %1", nullptr, total).arg(QDir::toNativeSeparators(m_exportFolder));
+}
+
+void ShortsGenerator::exportCut(const QString &sequenceId, const QString &captions)
+{
+    if (exporting())
+        return;
+    m_pendingCaptions = captions.isEmpty() ? QStringLiteral("video") : captions;
+    m_exportOnly = {sequenceId};
+    m_exportPending = true;
+    m_exports.clear();
+    Q_EMIT exportChanged();
+    if (!tracking())
+        startExport();
+}
+
+void ShortsGenerator::previewCut(const QString &sequenceId)
+{
+    const QVariantMap info = [&] {
+        for (const QVariant &v : m_editor->shortSequences())
+            if (v.toMap().value(QStringLiteral("id")).toString() == sequenceId)
+                return v.toMap();
+        return QVariantMap();
+    }();
+    const MediaItem *m = m_editor->mediaItem(info.value(QStringLiteral("mediaId")).toString());
+    if (!m)
+        return;
+    const qint64 startMs = info.value(QStringLiteral("startMs")).toLongLong(), endMs = info.value(QStringLiteral("endMs")).toLongLong();
+    // the cut's own caption track (as edited), shifted to the source's time
+    QString file;
+    QSize size = m_previewSize;
+    for (const Sequence &s : m_editor->document().sequences) {
+        if (s.id != sequenceId)
+            continue;
+        const Platform platform = Platforms::primary(info.value(QStringLiteral("platforms")).toStringList());
+        if (platform.valid())
+            size = QSize(platform.width, platform.height);
+        for (const Track &t : s.timeline.tracks) {
+            if (!Captions::trackHasCaptions(t) || t.hidden)
+                continue;
+            const Captions::Style style = Captions::Style::fromMap(t.captionStyle);
+            const double fps = m_editor->fps();
+            QList<Captions::Cue> cues = Captions::trackCues(t, fps, style, size.width(), size.height());
+            for (Captions::Cue &cue : cues) {
+                cue.startMs += startMs;
+                cue.endMs += startMs;
+                for (Captions::Word &w : cue.words) {
+                    w.startMs += startMs;
+                    w.endMs += startMs;
+                }
+            }
+            if (!cues.isEmpty())
+                file = Editor::cacheCaptions(Captions::toAss(cues, style, size.width(), size.height(), fps));
+            break;
+        }
+    }
+    Player *p = m_editor->player();
+    if (p->sourceMediaId() != m->id)
+        p->openSource(m->id, m->path, m->length);
+    m_previewAss = file;
+    m_previewSize = size;
+    Q_EMIT previewChanged();
+    const int in = int(std::lround(startMs * m_editor->fps() / 1000.0));
+    p->setMode(QStringLiteral("source"));
+    p->setSourceIn(in);
+    p->setSourceOut(int(std::lround(endMs * m_editor->fps() / 1000.0)));
+    p->seek(in);
+    p->play();
+}
+
+void ShortsGenerator::openExportFolder() const
+{
+    QDesktopServices::openUrl(QUrl::fromLocalFile(m_exportFolder));
+}
+
+bool ShortsGenerator::editCut(const QString &sequenceId)
+{
+    stopPreview();
+    m_editor->leaveCompound(0);
+    for (const Track &t : m_editor->currentTimeline().tracks)
+        for (const Clip &c : t.clips)
+            if (c.kind == QLatin1String("compound") && c.mediaId == sequenceId)
+                return m_editor->openCompound(c.id);
+    return false;
 }

@@ -30,6 +30,7 @@ add_library(studio-core STATIC
     src/core/projectio.cpp
     src/core/reframe.cpp
     src/core/timelineops.cpp
+    src/core/whisperhw.cpp
 )
 target_include_directories(studio-core PUBLIC src/core)
 target_link_libraries(studio-core PUBLIC Qt6::Core Qt6::Gui Mlt7::mlt++ Mlt7::mlt)
@@ -41,6 +42,7 @@ add_library(studio-app STATIC
     src/app/mediabin.cpp
     src/app/player.cpp
     src/app/videoitem.cpp
+    src/app/captionoverlay.cpp
     src/app/renderqueue.cpp
     src/app/scopes.cpp
     src/app/imageproviders.cpp
@@ -80,7 +82,7 @@ install(PROGRAMS data/facetrack.py DESTINATION ${CMAKE_INSTALL_DATADIR}/lingmo-s
 if(BUILD_TESTING)
     enable_testing()
     find_package(Qt6 REQUIRED COMPONENTS Test)
-    foreach(t tst_timeline tst_projectio tst_export tst_aitools tst_captions tst_shorts)
+    foreach(t tst_timeline tst_projectio tst_export tst_aitools tst_captions tst_shorts tst_whisperhw)
         add_executable(${t} tests/${t}.cpp)
         target_link_libraries(${t} PRIVATE studio-core Qt6::Test)
         target_compile_definitions(${t} PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch"
@@ -94,6 +96,11 @@ if(BUILD_TESTING)
     target_compile_definitions(tst_editor PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch")
     add_test(NAME tst_editor COMMAND tst_editor)
     set_tests_properties(tst_editor PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LC_ALL=C;SDL_AUDIODRIVER=dummy" TIMEOUT 300)
+    add_executable(tst_transcriber tests/tst_transcriber.cpp)
+    target_link_libraries(tst_transcriber PRIVATE studio-app Qt6::Test)
+    target_compile_definitions(tst_transcriber PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch")
+    add_test(NAME tst_transcriber COMMAND tst_transcriber)
+    set_tests_properties(tst_transcriber PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LC_ALL=C")
     add_executable(tst_shortsflow tests/tst_shortsflow.cpp)
     target_link_libraries(tst_shortsflow PRIVATE studio-app Qt6::Test)
     target_compile_definitions(tst_shortsflow PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch" TEST_DATA="${CMAKE_CURRENT_SOURCE_DIR}/data")

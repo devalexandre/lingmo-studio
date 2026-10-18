@@ -19,6 +19,9 @@ SplitView {
     orientation: Qt.Horizontal
     handle: PanelHandle { }
 
+    // The generated cuts export from Gerar cortes (one file per cut and platform)
+    signal exportCutsRequested()
+
     property string presetId: "mp4-h264"
     // the usual destinations first
     readonly property var order: ["youtube-1080p", "shorts-9x16", "mp4-h264", "prores-hq", "youtube-4k-hevc", "webm-vp9", "av1", "dnxhr-hq", "gif", "audio-mp3", "audio-wav"]
@@ -315,10 +318,95 @@ SplitView {
             StudioButton { text: qsTr("Clear finished"); size: 24; fontSize: StudioTheme.fontSmall; enabled: editor.renderQueue.count > 0; onClicked: editor.renderQueue.clearFinished() }
         ]
 
-        ListView {
-            id: queue
+        ColumnLayout {
             anchors.fill: parent
             anchors.margins: 6
+            spacing: 6
+
+        // ---- the cuts made in Gerar cortes: they export from there
+        Rectangle {
+            id: cutsBox
+            Layout.fillWidth: true
+            visible: editor.shortSequences.length > 0
+            implicitHeight: cutsCol.implicitHeight + 20
+            radius: StudioTheme.radius
+            color: StudioTheme.raised
+            border.width: 1
+            border.color: StudioTheme.accent
+            ColumnLayout {
+                id: cutsCol
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 4
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Generated cuts (%1)").arg(editor.shortSequences.length)
+                    color: StudioTheme.text
+                    font.family: StudioTheme.font
+                    font.pixelSize: StudioTheme.fontBody
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Each cut becomes one MP4 per platform, captions in the video. The settings on the left export the whole timeline instead.")
+                    color: StudioTheme.textSecondary
+                    font.family: StudioTheme.font
+                    font.pixelSize: StudioTheme.fontSmall
+                }
+                Repeater {
+                    model: editor.shorts.cuts
+                    RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Text {
+                            Layout.fillWidth: true
+                            text: modelData.name
+                            color: StudioTheme.text
+                            font.family: StudioTheme.font
+                            font.pixelSize: StudioTheme.fontSmall
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            text: modelData.state === "running" ? Math.round(modelData.progress * 100) + "%"
+                                : modelData.state === "queued" ? qsTr("queued")
+                                : modelData.state === "done" ? qsTr("done")
+                                : modelData.state === "failed" ? qsTr("failed")
+                                : modelData.length
+                            color: modelData.state === "done" ? StudioTheme.success : modelData.state === "failed" ? StudioTheme.danger : StudioTheme.textSecondary
+                            font.family: StudioTheme.font
+                            font.pixelSize: StudioTheme.fontSmall
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Item { Layout.fillWidth: true }
+                    StudioButton {
+                        visible: editor.shorts.exportDone
+                        text: qsTr("Open folder")
+                        iconName: "folder"
+                        size: 24
+                        fontSize: StudioTheme.fontSmall
+                        onClicked: editor.shorts.openExportFolder()
+                    }
+                    StudioButton {
+                        text: qsTr("Export cuts…")
+                        iconName: "export"
+                        primary: true
+                        size: 24
+                        fontSize: StudioTheme.fontSmall
+                        enabled: !editor.shorts.exporting
+                        onClicked: page.exportCutsRequested()
+                    }
+                }
+            }
+        }
+
+        ListView {
+            id: queue
+            Layout.fillWidth: true
+            Layout.fillHeight: true
             spacing: 6
             clip: true
             model: editor.renderQueue
@@ -420,10 +508,11 @@ SplitView {
                 }
             }
         }
+        }
         ColumnLayout {
             anchors.centerIn: parent
             width: parent.width - 40
-            visible: queue.count === 0
+            visible: queue.count === 0 && editor.shortSequences.length === 0
             spacing: 8
             StudioIcon { Layout.alignment: Qt.AlignHCenter; name: "page-deliver"; size: 32; color: StudioTheme.textDisabled }
             Text {

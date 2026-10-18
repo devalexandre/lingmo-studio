@@ -93,6 +93,47 @@ private Q_SLOTS:
         QCOMPARE(parseTranscript(fixture("whisper-cpp-ojf.json")).words, t.words);
     }
 
+    // A whisper loop over game sound: the sentence 9 times in a row (across
+    // segments and inside one) becomes one; speech around it stays
+    void repetitionLoop()
+    {
+        const Transcript t = parseWhisperCppJson(fixture("whisper-loop.json"));
+        const QString text = joinWords(t.words);
+        QCOMPARE(text, QStringLiteral("Qual que é o bot que tinha achado aqui? Era um de... Aquele tronco que é verde. "
+                                      "Alguém tinha que fazer alguma coisa. Agora sim, vamos embora daqui."));
+        QVERIFY(repetition(t.words) < 0.1);
+        // the raw loop is almost all repeats; normal speech isn't
+        QVERIFY(repetition(QString(QStringLiteral("Alguém tinha que fazer alguma coisa. ")).repeated(9)) > 0.8);
+        QVERIFY(repetition(QStringLiteral("Hoje a gente vai falar de edição de vídeo, de cortes e de legendas que todo mundo consegue ler.")) < 0.05);
+        // twice is speech (emphasis), and so is a word said three times
+        QList<Word> twice = spreadWords(QStringLiteral("Vai dar certo. Vai dar certo. Não, não, não."), 0, 6000);
+        QCOMPARE(collapseRepeats(twice).size(), twice.size());
+        // a single word stuck four times or more is a loop
+        QList<Word> stuck = spreadWords(QStringLiteral("e e e e e e então"), 0, 3000);
+        QCOMPARE(joinWords(collapseRepeats(stuck)), QStringLiteral("e então"));
+    }
+
+    // -dtw: the words take the tokens' t_dtw (centiseconds), 140 ms earlier,
+    // not the offsets whisper.cpp spread evenly over the segment
+    void whisperCppDtw()
+    {
+        const QByteArray json = R"({"result":{"language":"pt"},"transcription":[
+            {"offsets":{"from":26000,"to":28000},"text":" Matamos? Sim.","tokens":[
+              {"text":"[_BEG_]","offsets":{"from":26000,"to":26000},"t_dtw":-1},
+              {"text":" Mat","offsets":{"from":26000,"to":26850},"t_dtw":2684},
+              {"text":"amos","offsets":{"from":26850,"to":27900},"t_dtw":2712},
+              {"text":"?","offsets":{"from":27900,"to":27950},"t_dtw":2726},
+              {"text":" Sim","offsets":{"from":27950,"to":28000},"t_dtw":2750},
+              {"text":".","offsets":{"from":28000,"to":28000},"t_dtw":2760}]}]})";
+        const Transcript t = parseWhisperCppJson(json);
+        QCOMPARE(t.words.size(), 2);
+        QCOMPARE(t.words.at(0).text, QStringLiteral("Matamos?"));
+        QCOMPARE(t.words.at(0).startMs, 26840 - 140);
+        QCOMPARE(t.words.at(0).endMs, 27500 - 140); // until "Sim"
+        QCOMPARE(t.words.at(1).startMs, 27500 - 140);
+        QVERIFY(t.words.at(1).endMs > t.words.at(1).startMs && t.words.at(1).endMs <= 28000);
+    }
+
     void whisperCppOneWordSegments()
     {
         // whisper-cli -ml 1 -oj: one word per segment, no tokens
