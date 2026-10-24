@@ -34,6 +34,7 @@ PageBar 1.0 PageBar.qml
 PanelHandle 1.0 PanelHandle.qml
 ParamEditor 1.0 ParamEditor.qml
 ProjectSettingsDialog 1.0 ProjectSettingsDialog.qml
+RenderIsland 1.0 RenderIsland.qml
 ScopeView 1.0 ScopeView.qml
 SearchPanel 1.0 SearchPanel.qml
 ShortsPage 1.0 ShortsPage.qml

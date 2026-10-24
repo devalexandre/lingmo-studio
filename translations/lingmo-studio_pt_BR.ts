@@ -3988,4 +3988,42 @@ Seu Nome</translation>
         <translation>~%1 min por minuto de áudio</translation>
     </message>
 </context>
+<context>
+    <name>RenderIsland</name>
+    <message>
+        <source>%1 s left</source>
+        <translation>%1 s restantes</translation>
+    </message>
+    <message>
+        <source>%1 min left</source>
+        <translation>%1 min restantes</translation>
+    </message>
+    <message>
+        <source>Exporting</source>
+        <translation>Exportando</translation>
+    </message>
+    <message>
+        <source>Waiting to render</source>
+        <translation>Aguardando renderização</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Export failed</source>
+        <translation>Falha na exportação</translation>
+    </message>
+    <message>
+        <source>Export complete</source>
+        <translation>Exportação concluída</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n more in the queue</source>
+        <translation>
+            <numerusform>mais %n na fila</numerusform>
+            <numerusform>mais %n na fila</numerusform>
+        </translation>
+    </message>
+</context>
 </TS>

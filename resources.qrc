@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>qml/Main.qml</file>
+        <file>qml/RenderIsland.qml</file>
         <file>qml/qmldir</file>
         <file>qml/AudioPage.qml</file>
         <file>qml/BigAction.qml</file>

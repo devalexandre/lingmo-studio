@@ -179,6 +179,9 @@ LingmoUI.Window {
     }
 
     // ------------------------------------------------------------ file dialogs
+    // Render queue progress in the status bar's Island
+    RenderIsland {}
+
     FileDialog {
         id: openDialog
         title: qsTr("Open project")
