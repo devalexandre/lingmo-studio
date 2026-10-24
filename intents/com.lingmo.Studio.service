@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=com.lingmo.Studio
+Exec=/usr/bin/lingmo-studio-intents

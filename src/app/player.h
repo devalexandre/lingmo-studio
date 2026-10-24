@@ -57,6 +57,9 @@ public:
     void setPlan(const Studio::RenderPlan &plan);
     // A still of the given plan at a frame (before/after comparisons), off the consumer
     QImage renderStill(const Studio::RenderPlan &plan, int frame, int width);
+    // A still at `scale` of the project size, whatever the preview size is (thumbnails).
+    // The plan has to come from a Planner with the same scale.
+    QImage renderFullStill(const Studio::RenderPlan &plan, int frame, double scale);
 
     int position() const { return m_position; }
     int duration() const { return m_mode == QLatin1String("source") ? m_sourceLength : m_timelineLength; }
@@ -123,6 +126,9 @@ private:
     std::unique_ptr<Mlt::Profile> m_profile;
     std::unique_ptr<Studio::MltBuilder> m_builder;
     std::unique_ptr<Studio::MltBuilder> m_stillBuilder;
+    std::unique_ptr<Mlt::Profile> m_fullProfile;
+    std::unique_ptr<Studio::MltBuilder> m_fullBuilder;
+    double m_fullScale = 0;
     std::unique_ptr<Mlt::Tractor> m_tractor;
     std::unique_ptr<Mlt::Producer> m_source;
     std::unique_ptr<Mlt::FilteredConsumer> m_consumer;

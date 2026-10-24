@@ -75,6 +75,9 @@ SplitView {
         onAccepted: editor.exportSubtitles(selectedFile)
     }
 
+    PublishDialog { id: publishDialog }
+    DubDialog { id: dubDialog }
+
     component SettingLabel: Text {
         color: StudioTheme.textSecondary
         font.family: StudioTheme.font
@@ -273,6 +276,22 @@ SplitView {
                         iconName: "captions"
                         flat: false
                         onClicked: srtSave.open()
+                    }
+                    StudioButton {
+                        Layout.fillWidth: true
+                        text: qsTr("Title, description and thumbnail…")
+                        iconName: "image"
+                        flat: false
+                        tip: qsTr("The local AI writes a title, description and tags from what is said, and builds a thumbnail from the video")
+                        onClicked: publishDialog.open()
+                    }
+                    StudioButton {
+                        Layout.fillWidth: true
+                        text: qsTr("Dub in another language…")
+                        iconName: "mic"
+                        flat: false
+                        tip: qsTr("Clones the speaker's voice and says the translated speech in other languages, as audio files for YouTube")
+                        onClicked: dubDialog.open()
                     }
                     Item { Layout.preferredHeight: 10 }
                 }

@@ -716,6 +716,356 @@
         <source>Pick a format and add the project to the queue. You can keep editing while it renders.</source>
         <translation>Escolha um formato e adicione o projeto à fila. Você pode continuar editando enquanto renderiza.</translation>
     </message>
+    <message>
+        <source>Title, description and thumbnail…</source>
+        <translation>Título, descrição e miniatura…</translation>
+    </message>
+    <message>
+        <source>The local AI writes a title, description and tags from what is said, and builds a thumbnail from the video</source>
+        <translation>A IA local escreve título, descrição e tags a partir do que é dito e monta uma miniatura com o vídeo</translation>
+    </message>
+    <message>
+        <source>Dub in another language…</source>
+        <translation>Dublar em outro idioma…</translation>
+    </message>
+    <message>
+        <source>Clones the speaker&apos;s voice and says the translated speech in other languages, as audio files for YouTube</source>
+        <translation>Clona a voz de quem fala e diz a fala traduzida em outros idiomas, em arquivos de áudio para o YouTube</translation>
+    </message>
+</context>
+<context>
+    <name>DubDialog</name>
+    <message>
+        <source>Dub in another language</source>
+        <translation>Dublar em outro idioma</translation>
+    </message>
+    <message>
+        <source>Choose a recording of the voice</source>
+        <translation>Escolha uma gravação da voz</translation>
+    </message>
+    <message>
+        <source>Audio and video (*.wav *.mp3 *.m4a *.flac *.ogg *.mp4 *.mov *.mkv *.webm)</source>
+        <translation>Áudio e vídeo (*.wav *.mp3 *.m4a *.flac *.ogg *.mp4 *.mov *.mkv *.webm)</translation>
+    </message>
+    <message>
+        <source>Save the dubs in</source>
+        <translation>Salvar as dublagens em</translation>
+    </message>
+    <message>
+        <source>Voice engine</source>
+        <translation>Motor de voz</translation>
+    </message>
+    <message>
+        <source>Cloning a voice needs Chatterbox (open source, MIT licence) with PyTorch and a 3 GB voice model: about 9 GB on disk, installed once into your home folder. Everything then runs on this computer.</source>
+        <translation>Clonar uma voz exige o Chatterbox (código aberto, licença MIT) com o PyTorch e um modelo de voz de 3 GB: cerca de 9 GB em disco, instalados uma vez na sua pasta pessoal. Depois tudo roda neste computador.</translation>
+    </message>
+    <message>
+        <source>No usable graphics card was found, so the voice runs on the CPU: about 12 times slower than the speech lasts. It works, but a card with 6 GB of video memory is far faster.</source>
+        <translation>Não foi encontrada uma placa de vídeo utilizável, então a voz roda na CPU: cerca de 12 vezes mais lenta que a duração da fala. Funciona, mas uma placa com 6 GB de memória de vídeo é bem mais rápida.</translation>
+    </message>
+    <message>
+        <source>Cancel installation</source>
+        <translation>Cancelar a instalação</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Tentar de novo</translation>
+    </message>
+    <message>
+        <source>Install the voice engine</source>
+        <translation>Instalar o motor de voz</translation>
+    </message>
+    <message>
+        <source>Check again</source>
+        <translation>Verificar de novo</translation>
+    </message>
+    <message>
+        <source>Languages (%1 chosen)</source>
+        <translation>Idiomas (%1 escolhidos)</translation>
+    </message>
+    <message>
+        <source>Voice to clone</source>
+        <translation>Voz a clonar</translation>
+    </message>
+    <message>
+        <source>Automatic: the cleanest, most continuous 10 to 15 seconds of speech in the video</source>
+        <translation>Automático: os 10 a 15 segundos de fala mais limpos e contínuos do vídeo</translation>
+    </message>
+    <message>
+        <source>Choose a recording…</source>
+        <translation>Escolher uma gravação…</translation>
+    </message>
+    <message>
+        <source>Automatic</source>
+        <translation>Automático</translation>
+    </message>
+    <message>
+        <source>A quiet recording of one person, without music behind, gives the best clone.</source>
+        <translation>Uma gravação silenciosa de uma só pessoa, sem música ao fundo, dá o melhor clone.</translation>
+    </message>
+    <message>
+        <source>Save in</source>
+        <translation>Salvar em</translation>
+    </message>
+    <message>
+        <source>Choose a folder…</source>
+        <translation>Escolher uma pasta…</translation>
+    </message>
+    <message>
+        <source>Ready</source>
+        <translation>Pronto</translation>
+    </message>
+    <message>
+        <source>Add to timeline</source>
+        <translation>Adicionar à linha do tempo</translation>
+    </message>
+    <message>
+        <source>Puts the dub on a new audio track so you can hear it with the picture</source>
+        <translation>Coloca a dublagem em uma nova faixa de áudio para ouvir junto com a imagem</translation>
+    </message>
+    <message>
+        <source>To publish: YouTube Studio › Content › your video › Languages › Add language › Add dub, and upload the MP3 (or the WAV). YouTube may ask you to say that the audio is AI-generated; check its current rules. Chatterbox marks its audio with an inaudible watermark.</source>
+        <translation>Para publicar: YouTube Studio › Conteúdo › seu vídeo › Idiomas › Adicionar idioma › Adicionar dublagem, e envie o MP3 (ou o WAV). O YouTube pode pedir que você informe que o áudio foi gerado por IA; confira as regras atuais. O Chatterbox marca seu áudio com uma marca d&apos;água inaudível.</translation>
+    </message>
+    <message>
+        <source>The text is translated by the AI model chosen in Settings › AI. Nothing leaves this computer.</source>
+        <translation>O texto é traduzido pelo modelo de IA escolhido em Configurações › IA. Nada sai deste computador.</translation>
+    </message>
+    <message>
+        <source>Open folder</source>
+        <translation>Abrir pasta</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Fechar</translation>
+    </message>
+    <message>
+        <source>Dub again</source>
+        <translation>Dublar de novo</translation>
+    </message>
+    <message>
+        <source>Dub</source>
+        <translation>Dublar</translation>
+    </message>
+</context>
+<context>
+    <name>Dubber</name>
+    <message>
+        <source>The speech could not be transcribed: %1</source>
+        <translation>Não foi possível transcrever a fala: %1</translation>
+    </message>
+    <message>
+        <source>File: %1</source>
+        <translation>Arquivo: %1</translation>
+    </message>
+    <message numerus="yes">
+        <source>About %n minute(s) per language on the graphics card</source>
+        <translation><numerusform>Cerca de %n minuto por idioma na placa de vídeo</numerusform><numerusform>Cerca de %n minutos por idioma na placa de vídeo</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>About %n minute(s) per language on the CPU. A graphics card is far faster.</source>
+        <translation><numerusform>Cerca de %n minuto por idioma na CPU. Uma placa de vídeo é bem mais rápida.</numerusform><numerusform>Cerca de %n minutos por idioma na CPU. Uma placa de vídeo é bem mais rápida.</numerusform></translation>
+    </message>
+    <message>
+        <source>Checking…</source>
+        <translation>Verificando…</translation>
+    </message>
+    <message>
+        <source>Not installed</source>
+        <translation>Não instalado</translation>
+    </message>
+    <message>
+        <source>%1 · %2 (%3 GB)</source>
+        <translation>%1 · %2 (%3 GB)</translation>
+    </message>
+    <message>
+        <source>%1 · CPU (slow)</source>
+        <translation>%1 · CPU (lenta)</translation>
+    </message>
+    <message>
+        <source>The voice engine does not start. Install it again.</source>
+        <translation>O motor de voz não inicia. Instale-o de novo.</translation>
+    </message>
+    <message>
+        <source>Python could not be started.</source>
+        <translation>Não foi possível iniciar o Python.</translation>
+    </message>
+    <message>
+        <source>The installation was cancelled. It continues where it stopped the next time.</source>
+        <translation>A instalação foi cancelada. Na próxima vez ela continua de onde parou.</translation>
+    </message>
+    <message>
+        <source>Creating the Python environment…</source>
+        <translation>Criando o ambiente Python…</translation>
+    </message>
+    <message>
+        <source>Python 3.10 to 3.12 is needed (Chatterbox does not support newer versions yet). Install it with “sudo pacman -S uv” and try again.</source>
+        <translation>É preciso o Python 3.10 a 3.12 (o Chatterbox ainda não aceita versões mais novas). Instale com “sudo pacman -S uv” e tente de novo.</translation>
+    </message>
+    <message>
+        <source>Installing PyTorch and Chatterbox (about 6 GB, this takes a while)…</source>
+        <translation>Instalando o PyTorch e o Chatterbox (cerca de 6 GB, demora um pouco)…</translation>
+    </message>
+    <message>
+        <source>Downloading the voice model (about 3 GB)…</source>
+        <translation>Baixando o modelo de voz (cerca de 3 GB)…</translation>
+    </message>
+    <message>
+        <source>The installation failed:</source>
+        <translation>A instalação falhou:</translation>
+    </message>
+    <message>
+        <source>The installer could not be started.</source>
+        <translation>Não foi possível iniciar o instalador.</translation>
+    </message>
+    <message>
+        <source>The voice engine is installed.</source>
+        <translation>O motor de voz está instalado.</translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation>Cancelado</translation>
+    </message>
+    <message>
+        <source>The translation uses an Ollama model. Choose Ollama in Settings › AI.</source>
+        <translation>A tradução usa um modelo do Ollama. Escolha o Ollama em Configurações › IA.</translation>
+    </message>
+    <message>
+        <source>The translation needs an AI model. Choose one in Settings › AI.</source>
+        <translation>A tradução precisa de um modelo de IA. Escolha um em Configurações › IA.</translation>
+    </message>
+    <message>
+        <source>Install the voice engine first.</source>
+        <translation>Instale o motor de voz primeiro.</translation>
+    </message>
+    <message>
+        <source>Choose at least one language.</source>
+        <translation>Escolha pelo menos um idioma.</translation>
+    </message>
+    <message>
+        <source>Put something on the timeline first.</source>
+        <translation>Coloque algo na linha do tempo primeiro.</translation>
+    </message>
+    <message>
+        <source>Reading what is said in the video…</source>
+        <translation>Lendo o que é dito no vídeo…</translation>
+    </message>
+    <message>
+        <source>The transcriber is busy with another task.</source>
+        <translation>O transcritor está ocupado com outra tarefa.</translation>
+    </message>
+    <message>
+        <source>Transcribing the speech…</source>
+        <translation>Transcrevendo a fala…</translation>
+    </message>
+    <message>
+        <source>No speech was found on the timeline.</source>
+        <translation>Nenhuma fala foi encontrada na linha do tempo.</translation>
+    </message>
+    <message>
+        <source>The video is already in %1: skipped.</source>
+        <translation>O vídeo já está em %1: ignorado.</translation>
+    </message>
+    <message>
+        <source>Choose a language other than the one spoken in the video.</source>
+        <translation>Escolha um idioma diferente do falado no vídeo.</translation>
+    </message>
+    <message>
+        <source>Choosing the voice to clone…</source>
+        <translation>Escolhendo a voz a clonar…</translation>
+    </message>
+    <message>
+        <source>No clip with speech to take the voice from. Choose a voice file.</source>
+        <translation>Nenhum clipe com fala de onde tirar a voz. Escolha um arquivo de voz.</translation>
+    </message>
+    <message>
+        <source>There is not enough continuous speech to clone the voice. Choose a voice file of 10 seconds or more.</source>
+        <translation>Não há fala contínua suficiente para clonar a voz. Escolha um arquivo de voz de 10 segundos ou mais.</translation>
+    </message>
+    <message>
+        <source>Taken from the video: %1 s starting at %2</source>
+        <translation>Tirada do vídeo: %1 s a partir de %2</translation>
+    </message>
+    <message>
+        <source>Could not extract the voice sample: %1</source>
+        <translation>Não foi possível extrair a amostra de voz: %1</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1: %n sentence(s) could not be translated and stay in the original language.</source>
+        <translation><numerusform>%1: %n frase não pôde ser traduzida e fica no idioma original.</numerusform><numerusform>%1: %n frases não puderam ser traduzidas e ficam no idioma original.</numerusform></translation>
+    </message>
+    <message>
+        <source>Translating to %1…</source>
+        <translation>Traduzindo para %1…</translation>
+    </message>
+    <message>
+        <source>The AI model %1 did not answer (%2). Is Ollama running?</source>
+        <translation>O modelo de IA %1 não respondeu (%2). O Ollama está rodando?</translation>
+    </message>
+    <message>
+        <source>Could not write %1</source>
+        <translation>Não foi possível escrever %1</translation>
+    </message>
+    <message>
+        <source>Loading the voice model…</source>
+        <translation>Carregando o modelo de voz…</translation>
+    </message>
+    <message>
+        <source>Speaking in %1 (%2 of %3)…</source>
+        <translation>Falando em %1 (%2 de %3)…</translation>
+    </message>
+    <message>
+        <source>The voice engine failed: %1</source>
+        <translation>O motor de voz falhou: %1</translation>
+    </message>
+    <message>
+        <source>The voice engine is not installed.</source>
+        <translation>O motor de voz não está instalado.</translation>
+    </message>
+    <message>
+        <source>The voice engine produced no result.</source>
+        <translation>O motor de voz não produziu resultado.</translation>
+    </message>
+    <message>
+        <source>Fitting the speech to the video…</source>
+        <translation>Encaixando a fala no vídeo…</translation>
+    </message>
+    <message>
+        <source>The voice engine could not build the track: %1</source>
+        <translation>O motor de voz não conseguiu montar a faixa: %1</translation>
+    </message>
+    <message>
+        <source>Saving the audio…</source>
+        <translation>Salvando o áudio…</translation>
+    </message>
+    <message>
+        <source>Could not create the folder %1</source>
+        <translation>Não foi possível criar a pasta %1</translation>
+    </message>
+    <message>
+        <source>Could not save the audio: %1</source>
+        <translation>Não foi possível salvar o áudio: %1</translation>
+    </message>
+    <message>
+        <source>%1: the translation runs longer than the original, so %2 of %3 passages were sped up (by up to %4×). It still sounds natural, but a shorter translation would be better.</source>
+        <translation>%1: a tradução é mais longa que o original, então %2 de %3 trechos foram acelerados (em até %4×). Ainda soa natural, mas uma tradução mais curta seria melhor.</translation>
+    </message>
+    <message>
+        <source>%1: the last passage runs %2 s past the end of the video and was cut.</source>
+        <translation>%1: o último trecho passa %2 s do fim do vídeo e foi cortado.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Dubbing is ready: %n language(s) saved</source>
+        <translation><numerusform>Dublagem pronta: %n idioma salvo</numerusform><numerusform>Dublagem pronta: %n idiomas salvos</numerusform></translation>
+    </message>
+    <message>
+        <source>Dub · %1</source>
+        <translation>Dublagem · %1</translation>
+    </message>
 </context>
 <context>
     <name>EditIndex</name>
@@ -2525,6 +2875,109 @@ Seu Nome</translation>
     </message>
 </context>
 <context>
+    <name>MetadataGenerator</name>
+    <message>
+        <source>No speech was found in the video: the text uses the project name and what is on screen.</source>
+        <translation>Nenhuma fala foi encontrada no vídeo: o texto usa o nome do projeto e o que aparece na tela.</translation>
+    </message>
+    <message>
+        <source>The speech could not be transcribed (%1): the text uses the project name and what is on screen.</source>
+        <translation>Não foi possível transcrever a fala (%1): o texto usa o nome do projeto e o que aparece na tela.</translation>
+    </message>
+    <message>
+        <source>Bold</source>
+        <translation>Impacto</translation>
+    </message>
+    <message>
+        <source>Banner</source>
+        <translation>Faixa</translation>
+    </message>
+    <message>
+        <source>Centered</source>
+        <translation>Centralizado</translation>
+    </message>
+    <message>
+        <source>Put something on the timeline first.</source>
+        <translation>Coloque algo na linha do tempo primeiro.</translation>
+    </message>
+    <message>
+        <source>Reading what is said in the video…</source>
+        <translation>Lendo o que é dito no vídeo…</translation>
+    </message>
+    <message>
+        <source>The transcriber is busy with another task: the text uses the project name and what is on screen.</source>
+        <translation>O transcritor está ocupado com outra tarefa: o texto usa o nome do projeto e o que aparece na tela.</translation>
+    </message>
+    <message>
+        <source>Transcribing the speech…</source>
+        <translation>Transcrevendo a fala…</translation>
+    </message>
+    <message>
+        <source>Nothing with speech on the timeline: the text uses the project name and what is on screen.</source>
+        <translation>Nada com fala na linha do tempo: o texto usa o nome do projeto e o que aparece na tela.</translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation>Cancelado</translation>
+    </message>
+    <message>
+        <source>No Ollama model chosen in Settings › AI: this is a simple version made from the transcript.</source>
+        <translation>Nenhum modelo do Ollama escolhido em Configurações › IA: esta é uma versão simples feita a partir da transcrição.</translation>
+    </message>
+    <message>
+        <source>Writing the title and description with %1…</source>
+        <translation>Escrevendo o título e a descrição com %1…</translation>
+    </message>
+    <message>
+        <source>The AI model %1 did not answer (%2): this is a simple version made from the transcript.</source>
+        <translation>O modelo de IA %1 não respondeu (%2): esta é uma versão simples feita a partir da transcrição.</translation>
+    </message>
+    <message>
+        <source>The AI model %1 gave an answer that could not be read: this is a simple version made from the transcript.</source>
+        <translation>O modelo de IA %1 deu uma resposta que não pôde ser lida: esta é uma versão simples feita a partir da transcrição.</translation>
+    </message>
+    <message>
+        <source>Intro</source>
+        <translation>Introdução</translation>
+    </message>
+    <message>
+        <source>Choosing frames for the thumbnail…</source>
+        <translation>Escolhendo quadros para a miniatura…</translation>
+    </message>
+    <message>
+        <source>No frame could be read from the timeline, so there is no thumbnail.</source>
+        <translation>Nenhum quadro pôde ser lido da linha do tempo, então não há miniatura.</translation>
+    </message>
+    <message>
+        <source>Title, description and thumbnail are ready (Export page)</source>
+        <translation>Título, descrição e miniatura prontos (página Exportar)</translation>
+    </message>
+    <message>
+        <source>Thumbnail saved to %1</source>
+        <translation>Miniatura salva em %1</translation>
+    </message>
+    <message>
+        <source>Could not save the thumbnail to %1</source>
+        <translation>Não foi possível salvar a miniatura em %1</translation>
+    </message>
+    <message>
+        <source>Could not save %1</source>
+        <translation>Não foi possível salvar %1</translation>
+    </message>
+    <message>
+        <source>Tags: %1</source>
+        <translation>Tags: %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1</source>
+        <translation>Salvo em %1</translation>
+    </message>
+    <message>
+        <source>Copied</source>
+        <translation>Copiado</translation>
+    </message>
+</context>
+<context>
     <name>Mixer</name>
     <message>
         <source>Unmute</source>
@@ -2731,10 +3184,159 @@ Seu Nome</translation>
     </message>
 </context>
 <context>
+    <name>PublishDialog</name>
+    <message>
+        <source>Title, description and thumbnail</source>
+        <translation>Título, descrição e miniatura</translation>
+    </message>
+    <message>
+        <source>Save thumbnail</source>
+        <translation>Salvar miniatura</translation>
+    </message>
+    <message>
+        <source>Images (*.jpg *.png)</source>
+        <translation>Imagens (*.jpg *.png)</translation>
+    </message>
+    <message>
+        <source>Save title and description</source>
+        <translation>Salvar título e descrição</translation>
+    </message>
+    <message>
+        <source>Text (*.txt)</source>
+        <translation>Texto (*.txt)</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Copiar</translation>
+    </message>
+    <message>
+        <source>Title (%1/100)</source>
+        <translation>Título (%1/100)</translation>
+    </message>
+    <message>
+        <source>Generate to get a title</source>
+        <translation>Gere para obter um título</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Descrição</translation>
+    </message>
+    <message>
+        <source>Generate to get a description</source>
+        <translation>Gere para obter uma descrição</translation>
+    </message>
+    <message>
+        <source>Tags</source>
+        <translation>Tags</translation>
+    </message>
+    <message>
+        <source>keyword, keyword, …</source>
+        <translation>palavra-chave, palavra-chave, …</translation>
+    </message>
+    <message>
+        <source>Written by %1 from the video&apos;s speech. Check it before publishing.</source>
+        <translation>Escrito por %1 a partir da fala do vídeo. Revise antes de publicar.</translation>
+    </message>
+    <message>
+        <source>A simple version made from the transcript. Choose an Ollama model in Settings › AI for better text.</source>
+        <translation>Uma versão simples feita a partir da transcrição. Escolha um modelo do Ollama em Configurações › IA para um texto melhor.</translation>
+    </message>
+    <message>
+        <source>Thumbnail</source>
+        <translation>Miniatura</translation>
+    </message>
+    <message>
+        <source>Choosing a frame…</source>
+        <translation>Escolhendo um quadro…</translation>
+    </message>
+    <message>
+        <source>The thumbnail appears here</source>
+        <translation>A miniatura aparece aqui</translation>
+    </message>
+    <message>
+        <source>Headline on the image</source>
+        <translation>Título na imagem</translation>
+    </message>
+    <message>
+        <source>2 to 4 words</source>
+        <translation>2 a 4 palavras</translation>
+    </message>
+    <message>
+        <source>Frame</source>
+        <translation>Quadro</translation>
+    </message>
+    <message>
+        <source>Uses the speech of the timeline and the AI model chosen in Settings › AI. Nothing is uploaded.</source>
+        <translation>Usa a fala da linha do tempo e o modelo de IA escolhido em Configurações › IA. Nada é enviado.</translation>
+    </message>
+    <message>
+        <source>Save thumbnail…</source>
+        <translation>Salvar miniatura…</translation>
+    </message>
+    <message>
+        <source>Save text…</source>
+        <translation>Salvar texto…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Fechar</translation>
+    </message>
+    <message>
+        <source>Generate again</source>
+        <translation>Gerar de novo</translation>
+    </message>
+    <message>
+        <source>Generate</source>
+        <translation>Gerar</translation>
+    </message>
+</context>
+<context>
     <name>Recorder</name>
     <message>
         <source>Nothing was recorded</source>
         <translation>Nada foi gravado</translation>
+    </message>
+</context>
+<context>
+    <name>RenderIsland</name>
+    <message>
+        <source>%1 s left</source>
+        <translation>%1 s restantes</translation>
+    </message>
+    <message>
+        <source>%1 min left</source>
+        <translation>%1 min restantes</translation>
+    </message>
+    <message>
+        <source>Exporting</source>
+        <translation>Exportando</translation>
+    </message>
+    <message>
+        <source>Waiting to render</source>
+        <translation>Aguardando renderização</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Export failed</source>
+        <translation>Falha na exportação</translation>
+    </message>
+    <message>
+        <source>Export complete</source>
+        <translation>Exportação concluída</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n more in the queue</source>
+        <translation>
+            <numerusform>mais %n na fila</numerusform>
+            <numerusform>mais %n na fila</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -3986,44 +4588,6 @@ Seu Nome</translation>
     <message>
         <source>~%1 min per minute of audio</source>
         <translation>~%1 min por minuto de áudio</translation>
-    </message>
-</context>
-<context>
-    <name>RenderIsland</name>
-    <message>
-        <source>%1 s left</source>
-        <translation>%1 s restantes</translation>
-    </message>
-    <message>
-        <source>%1 min left</source>
-        <translation>%1 min restantes</translation>
-    </message>
-    <message>
-        <source>Exporting</source>
-        <translation>Exportando</translation>
-    </message>
-    <message>
-        <source>Waiting to render</source>
-        <translation>Aguardando renderização</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation>Cancelar</translation>
-    </message>
-    <message>
-        <source>Export failed</source>
-        <translation>Falha na exportação</translation>
-    </message>
-    <message>
-        <source>Export complete</source>
-        <translation>Exportação concluída</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n more in the queue</source>
-        <translation>
-            <numerusform>mais %n na fila</numerusform>
-            <numerusform>mais %n na fila</numerusform>
-        </translation>
     </message>
 </context>
 </TS>

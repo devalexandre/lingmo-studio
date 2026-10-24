@@ -13,6 +13,7 @@ ColorWheel 1.0 ColorWheel.qml
 CurvesEditor 1.0 CurvesEditor.qml
 CutPage 1.0 CutPage.qml
 DeliverPage 1.0 DeliverPage.qml
+DubDialog 1.0 DubDialog.qml
 EditIndex 1.0 EditIndex.qml
 EditPage 1.0 EditPage.qml
 EffectsPage 1.0 EffectsPage.qml
@@ -34,6 +35,7 @@ PageBar 1.0 PageBar.qml
 PanelHandle 1.0 PanelHandle.qml
 ParamEditor 1.0 ParamEditor.qml
 ProjectSettingsDialog 1.0 ProjectSettingsDialog.qml
+PublishDialog 1.0 PublishDialog.qml
 RenderIsland 1.0 RenderIsland.qml
 ScopeView 1.0 ScopeView.qml
 SearchPanel 1.0 SearchPanel.qml

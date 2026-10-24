@@ -1,0 +1,145 @@
+{
+  "format": "lingmo-intents",
+  "version": 1,
+  "app": "lingmo-studio",
+  "name": {
+    "en": "Studio",
+    "pt_BR": "Studio"
+  },
+  "icon": "lingmo-studio",
+  "desktop": "lingmo-studio.desktop",
+  "dbus": {
+    "service": "com.lingmo.Studio",
+    "path": "/Intents"
+  },
+  "intents": [
+    {
+      "id": "studio.cuts.generate",
+      "title": {
+        "en": "Find Shorts/Reels cuts",
+        "pt_BR": "Encontrar cortes para Shorts/Reels"
+      },
+      "description": {
+        "en": "Opens a video in Lingmo Studio and looks for the best moments to cut as Shorts and Reels.",
+        "pt_BR": "Abre um vídeo no Lingmo Studio e procura os melhores momentos para cortar como Shorts e Reels."
+      },
+      "summary": {
+        "en": "Find cuts in {video}",
+        "pt_BR": "Encontrar cortes em {video}"
+      },
+      "icon": "edit-cut",
+      "capabilities": [
+        "create"
+      ],
+      "needsUI": true,
+      "assistantTool": "desktop_actions",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "video": {
+            "type": "string",
+            "format": "file",
+            "title": {
+              "en": "Video",
+              "pt_BR": "Vídeo"
+            }
+          }
+        },
+        "required": [
+          "video"
+        ]
+      },
+      "result": {
+        "type": "object",
+        "properties": {
+          "video": {
+            "type": "string",
+            "title": {
+              "en": "Video",
+              "pt_BR": "Vídeo"
+            }
+          }
+        }
+      },
+      "examples": {
+        "pt_BR": [
+          "gerar cortes de {video}",
+          "encontrar cortes em {video}",
+          "criar shorts de {video}"
+        ],
+        "en": [
+          "generate cuts from {video}",
+          "make shorts from {video}"
+        ]
+      }
+    },
+    {
+      "id": "studio.render",
+      "title": {
+        "en": "Render video",
+        "pt_BR": "Renderizar vídeo"
+      },
+      "description": {
+        "en": "Opens a project or video in Lingmo Studio and exports it as MP4 (H.264). Never replaces an existing file.",
+        "pt_BR": "Abre um projeto ou vídeo no Lingmo Studio e exporta como MP4 (H.264). Nunca substitui um arquivo existente."
+      },
+      "summary": {
+        "en": "Render {input}",
+        "pt_BR": "Renderizar {input}"
+      },
+      "icon": "media-record",
+      "capabilities": [
+        "create"
+      ],
+      "needsUI": true,
+      "assistantTool": "desktop_actions",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "format": "file",
+            "title": {
+              "en": "Project or video",
+              "pt_BR": "Projeto ou vídeo"
+            }
+          },
+          "output": {
+            "type": "string",
+            "format": "file",
+            "title": {
+              "en": "Save as (.mp4)",
+              "pt_BR": "Salvar como (.mp4)"
+            }
+          }
+        },
+        "required": [
+          "input",
+          "output"
+        ]
+      },
+      "result": {
+        "type": "object",
+        "properties": {
+          "output": {
+            "type": "string",
+            "title": {
+              "en": "Video file",
+              "pt_BR": "Arquivo de vídeo"
+            }
+          }
+        }
+      },
+      "examples": {
+        "pt_BR": [
+          "renderizar {input}",
+          "exportar vídeo {input} para {output}"
+        ],
+        "en": [
+          "render {input}",
+          "export video {input} to {output}"
+        ]
+      }
+    }
+  ]
+}

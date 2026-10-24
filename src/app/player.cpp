@@ -58,6 +58,9 @@ void Player::setProfile(const ProjectSettings &settings)
     m_source.reset();
     m_builder.reset();
     m_stillBuilder.reset();
+    m_fullBuilder.reset();
+    m_fullProfile.reset();
+    m_fullScale = 0;
     m_settings = settings;
     const QSize size = previewSize();
     m_profile = std::make_unique<Mlt::Profile>();
@@ -246,6 +249,41 @@ QImage Player::renderStill(const RenderPlan &plan, int frame, int width)
     int w = width - width % 2;
     int h = int(std::lround(double(w) * m_settings.height / m_settings.width));
     h -= h % 2;
+    f->set("consumer.rescale", "bilinear");
+    const uint8_t *img = f->get_image(fmt, w, h);
+    if (!img || fmt != mlt_image_rgba)
+        return {};
+    return QImage(img, w, h, QImage::Format_RGBA8888).copy();
+}
+
+QImage Player::renderFullStill(const RenderPlan &plan, int frame, double scale)
+{
+    scale = std::clamp(scale, 0.05, 1.0);
+    if (!m_fullBuilder || std::abs(m_fullScale - scale) > 1e-6) {
+        m_fullBuilder.reset();
+        const int w = std::max(2, int(std::lround(m_settings.width * scale / 2.0)) * 2);
+        const int h = std::max(2, int(std::lround(m_settings.height * scale / 2.0)) * 2);
+        m_fullProfile = std::make_unique<Mlt::Profile>();
+        m_fullProfile->set_width(w);
+        m_fullProfile->set_height(h);
+        m_fullProfile->set_frame_rate(m_settings.fpsNum, m_settings.fpsDen);
+        m_fullProfile->set_sample_aspect(1, 1);
+        m_fullProfile->set_display_aspect(w, h);
+        m_fullProfile->set_progressive(1);
+        m_fullProfile->set_colorspace(709);
+        m_fullProfile->set_explicit(1);
+        m_fullBuilder = std::make_unique<MltBuilder>(*m_fullProfile);
+        m_fullScale = scale;
+    }
+    std::unique_ptr<Mlt::Tractor> t = m_fullBuilder->build(plan);
+    if (!t)
+        return {};
+    t->seek(frame);
+    std::unique_ptr<Mlt::Frame> f(t->get_frame());
+    if (!f)
+        return {};
+    mlt_image_format fmt = mlt_image_rgba;
+    int w = m_fullProfile->width(), h = m_fullProfile->height();
     f->set("consumer.rescale", "bilinear");
     const uint8_t *img = f->get_image(fmt, w, h);
     if (!img || fmt != mlt_image_rgba)

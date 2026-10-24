@@ -18,10 +18,12 @@ find_package(Mlt7 REQUIRED)
 add_library(studio-core STATIC
     src/core/aitools.cpp
     src/core/captions.cpp
+    src/core/dubbing.cpp
     src/core/effects.cpp
     src/core/exporter.cpp
     src/core/highlights.cpp
     src/core/mediaprobe.cpp
+    src/core/metadata.cpp
     src/core/mltbuilder.cpp
     src/core/mltxml.cpp
     src/core/model.cpp
@@ -29,6 +31,7 @@ add_library(studio-core STATIC
     src/core/platforms.cpp
     src/core/projectio.cpp
     src/core/reframe.cpp
+    src/core/thumbnail.cpp
     src/core/timelineops.cpp
     src/core/whisperhw.cpp
 )
@@ -48,6 +51,8 @@ add_library(studio-app STATIC
     src/app/imageproviders.cpp
     src/app/recorder.cpp
     src/app/shorts.cpp
+    src/app/dubber.cpp
+    src/app/metadatagenerator.cpp
     src/app/transcriber.cpp
 )
 target_include_directories(studio-app PUBLIC src/app)
@@ -77,12 +82,12 @@ install(FILES data/lingmo-studio.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/mime/p
 install(FILES data/lingmo-studio.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
 # Social platform presets (editable) and the optional OpenCV subject tracker
 install(FILES data/platforms.json DESTINATION ${CMAKE_INSTALL_DATADIR}/lingmo-studio)
-install(PROGRAMS data/facetrack.py DESTINATION ${CMAKE_INSTALL_DATADIR}/lingmo-studio)
+install(PROGRAMS data/facetrack.py data/dub.py DESTINATION ${CMAKE_INSTALL_DATADIR}/lingmo-studio)
 
 if(BUILD_TESTING)
     enable_testing()
     find_package(Qt6 REQUIRED COMPONENTS Test)
-    foreach(t tst_timeline tst_projectio tst_export tst_aitools tst_captions tst_shorts tst_whisperhw)
+    foreach(t tst_timeline tst_projectio tst_export tst_aitools tst_captions tst_shorts tst_whisperhw tst_metadata tst_dubbing)
         add_executable(${t} tests/${t}.cpp)
         target_link_libraries(${t} PRIVATE studio-core Qt6::Test)
         target_compile_definitions(${t} PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch"
@@ -106,7 +111,23 @@ if(BUILD_TESTING)
     target_compile_definitions(tst_shortsflow PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch" TEST_DATA="${CMAKE_CURRENT_SOURCE_DIR}/data")
     add_test(NAME tst_shortsflow COMMAND tst_shortsflow)
     set_tests_properties(tst_shortsflow PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LC_ALL=C;SDL_AUDIODRIVER=dummy" TIMEOUT 600)
+    add_executable(tst_metadataflow tests/tst_metadataflow.cpp)
+    target_link_libraries(tst_metadataflow PRIVATE studio-app Qt6::Test Qt6::Network)
+    target_compile_definitions(tst_metadataflow PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch")
+    add_test(NAME tst_metadataflow COMMAND tst_metadataflow)
+    set_tests_properties(tst_metadataflow PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LC_ALL=C;SDL_AUDIODRIVER=dummy" TIMEOUT 300)
+
+    add_executable(tst_dubflow tests/tst_dubflow.cpp)
+    target_link_libraries(tst_dubflow PRIVATE studio-app Qt6::Test Qt6::Network)
+    target_compile_definitions(tst_dubflow PRIVATE TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test-scratch"
+        FAKE_DUB="${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_dub.py" REAL_DUB="${CMAKE_CURRENT_SOURCE_DIR}/data/dub.py")
+    add_test(NAME tst_dubflow COMMAND tst_dubflow)
+    set_tests_properties(tst_dubflow PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LC_ALL=C;SDL_AUDIODRIVER=dummy" TIMEOUT 300)
+
     # developer tool: builds a demo project from media files (screenshots)
     add_executable(demo_project tests/demo_project.cpp)
     target_link_libraries(demo_project PRIVATE studio-core Qt6::Gui)
 endif()
+
+# Lingmo Intents: studio.cuts.generate and studio.render for the Assistant, Flows and Spotlight
+add_subdirectory(intents)

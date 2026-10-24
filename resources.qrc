@@ -36,6 +36,8 @@
         <file>qml/PanelHandle.qml</file>
         <file>qml/ParamEditor.qml</file>
         <file>qml/ProjectSettingsDialog.qml</file>
+        <file>qml/PublishDialog.qml</file>
+        <file>qml/DubDialog.qml</file>
         <file>qml/ScopeView.qml</file>
         <file>qml/SearchPanel.qml</file>
         <file>qml/ShortsPage.qml</file>
@@ -51,6 +53,7 @@
         <file>qml/Viewer.qml</file>
         <file>data/platforms.json</file>
         <file>data/facetrack.py</file>
+        <file>data/dub.py</file>
         <file>data/lingmo-studio.svg</file>
         <file>data/icons/add-track.svg</file>
         <file>data/icons/append.svg</file>

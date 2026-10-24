@@ -14,3 +14,4 @@ Keywords=video;editor;edit;montage;timeline;mlt;color;grading;subtitles;
 Keywords[pt_BR]=vídeo;editor;edição;montagem;linha do tempo;mlt;cor;legendas;
 StartupNotify=true
 StartupWMClass=lingmo-studio
+X-Lingmo-Intents=studio.cuts.generate;studio.render;

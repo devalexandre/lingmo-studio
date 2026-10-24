@@ -14,6 +14,9 @@
 #include "imageproviders.h"
 #include "mediabin.h"
 #include "mediaprobe.h"
+#include "metadata.h"
+#include "metadatagenerator.h"
+#include "dubber.h"
 #include "mltbuilder.h"
 #include "player.h"
 #include "projectio.h"
@@ -39,6 +42,7 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QSet>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -123,6 +127,8 @@ Editor::Editor(QObject *parent)
     m_recorder = new Recorder(this);
     m_transcriber = new Transcriber(this);
     m_shorts = new ShortsGenerator(this);
+    m_metadata = new MetadataGenerator(this);
+    m_dubber = new Dubber(this);
     connect(m_transcriber, &Transcriber::engineChanged, this, &Editor::whisperChanged);
     connect(m_transcriber, &Transcriber::finished, this, [this](const QString &task) {
         if (task == QLatin1String("captions"))
@@ -259,6 +265,262 @@ QObject *Editor::scopesObject() const { return m_scopes; }
 QObject *Editor::recorderObject() const { return m_recorder; }
 QObject *Editor::transcriberObject() const { return m_transcriber; }
 QObject *Editor::shortsObject() const { return m_shorts; }
+QObject *Editor::metadataObject() const { return m_metadata; }
+QObject *Editor::dubberObject() const { return m_dubber; }
+
+// ------------------------------------------------------------------ publishing metadata
+
+// Clips of the main timeline, left to right
+static QList<const Clip *> clipsByPosition(const Timeline &tl)
+{
+    QList<const Clip *> clips;
+    for (const Track &t : tl.tracks)
+        for (const Clip &c : t.clips)
+            clips.append(&c);
+    std::stable_sort(clips.begin(), clips.end(), [](const Clip *a, const Clip *b) { return a->position < b->position; });
+    return clips;
+}
+
+Metadata::Input Editor::metadataInput() const
+{
+    Metadata::Input in;
+    const Timeline &tl = m_doc.timeline;
+    const double f = std::max(1.0, fps());
+    in.projectName = m_path.isEmpty() ? QString() : projectName();
+    in.durationSec = tl.duration() / f;
+    const QList<const Clip *> clips = clipsByPosition(tl);
+
+    // 1. captions already on the timeline: what the viewer reads
+    QStringList spoken;
+    for (const Clip *c : clips)
+        if (Captions::isCaption(*c)) {
+            const QString text = Captions::joinWords(Captions::clipWords(*c)).simplified();
+            if (!text.isEmpty())
+                spoken << text;
+        }
+    // 2. else the transcripts known for the media the timeline plays
+    if (spoken.isEmpty()) {
+        QSet<QString> seen;
+        for (const Clip *c : clips) {
+            if (c->kind != QLatin1String("media"))
+                continue;
+            const MediaItem *m = mediaItem(c->mediaId);
+            if (!m || !m->hasAudio)
+                continue;
+            const QString key = QStringLiteral("%1/%2/%3").arg(c->mediaId).arg(c->in).arg(c->out);
+            if (seen.contains(key))
+                continue; // the detached audio of a clip repeats its video
+            seen.insert(key);
+            const qint64 from = qint64(c->in * 1000.0 / f), to = qint64((c->out + 1) * 1000.0 / f);
+            QString text;
+            const auto known = m_mediaWords.constFind(c->mediaId);
+            if (known != m_mediaWords.constEnd()) {
+                QList<Captions::Word> words;
+                for (const Captions::Word &w : known.value())
+                    if (w.endMs > from && w.startMs < to)
+                        words.append(w);
+                text = Captions::joinWords(words);
+            } else if (!m->transcript.isEmpty()) {
+                QStringList parts;
+                for (const AiTools::SubtitleCue &cue : AiTools::parseSrt(m->transcript))
+                    if (cue.endMs > from && cue.startMs < to)
+                        parts << cue.text;
+                text = parts.join(QLatin1Char(' '));
+            }
+            text = text.simplified();
+            if (!text.isEmpty())
+                spoken << text;
+        }
+    }
+    in.transcript = spoken.join(QLatin1Char(' '));
+
+    for (const Clip *c : clips) {
+        if (Captions::isCaption(*c))
+            continue;
+        for (const Effect &e : c->effects)
+            if (e.type == QLatin1String("text")) {
+                const QString t = e.params.value(QStringLiteral("text")).toString().simplified();
+                if (!t.isEmpty() && !in.onScreenText.contains(t))
+                    in.onScreenText << t;
+            }
+    }
+    for (const Marker &m : tl.markers)
+        in.chapters.append({int(std::lround(m.frame / f)), m.name});
+    return in;
+}
+
+bool Editor::speechSource(QString *mediaId, QString *path, qint64 *startMs, qint64 *lengthMs) const
+{
+    const double f = std::max(1.0, fps());
+    for (const Clip *c : clipsByPosition(m_doc.timeline)) {
+        if (c->kind != QLatin1String("media") || std::abs(c->speed - 1.0) > 1e-6 || !c->speedRamp.isEmpty())
+            continue;
+        const MediaItem *m = mediaItem(c->mediaId);
+        if (!m || !m->hasAudio || m->path.isEmpty())
+            continue;
+        if (mediaId)
+            *mediaId = m->id;
+        if (path)
+            *path = m->path;
+        // what the clip plays, a little margin for words cut at the edges, at most 20 minutes
+        if (startMs)
+            *startMs = std::max<qint64>(0, qint64(c->in * 1000.0 / f) - 500);
+        if (lengthMs)
+            *lengthMs = std::min<qint64>(qint64(c->duration() * 1000.0 / f) + 1000, 20 * 60 * 1000);
+        return true;
+    }
+    return false;
+}
+
+void Editor::placeDubTrack(const QString &path, const QString &name)
+{
+    m_mediaBin->importFiles({path}, [this, name](const MediaItem &m) {
+        addTrack(QStringLiteral("audio"));
+        const int target = int(currentTimeline().tracks.size()) - 1;
+        setTrackProperty(target, QStringLiteral("name"), name);
+        addMediaToTimeline(m.id, target, 0);
+    });
+}
+
+QList<Captions::Word> Editor::mediaWords(const QString &mediaId) const
+{
+    return m_mediaWords.value(mediaId);
+}
+
+QList<Captions::Word> Editor::timelineWords() const
+{
+    const Timeline &tl = m_doc.timeline;
+    const double f = std::max(1.0, fps());
+    const QList<const Clip *> clips = clipsByPosition(tl);
+    QList<Captions::Word> out;
+
+    // the captions on the timeline: already in timeline time once the clip's origin is added
+    for (const Clip *c : clips) {
+        if (!Captions::isCaption(*c))
+            continue;
+        const double origin = Captions::originMs(*c, f);
+        const qint64 from = qint64(c->position * 1000.0 / f), to = qint64(c->end() * 1000.0 / f);
+        for (Captions::Word w : Captions::clipWords(*c)) {
+            w.startMs = qint64(std::llround(w.startMs + origin));
+            w.endMs = qint64(std::llround(w.endMs + origin));
+            const qint64 mid = (w.startMs + w.endMs) / 2;
+            if (mid >= from && mid < to)
+                out.append(w);
+        }
+    }
+    if (!out.isEmpty()) {
+        std::stable_sort(out.begin(), out.end(), [](const Captions::Word &a, const Captions::Word &b) { return a.startMs < b.startMs; });
+        return out;
+    }
+
+    // else the transcripts known for the media: file time → timeline time
+    QSet<QString> seen;
+    for (const Clip *c : clips) {
+        if (c->kind != QLatin1String("media") || std::abs(c->speed - 1.0) > 1e-6 || !c->speedRamp.isEmpty())
+            continue;
+        const MediaItem *m = mediaItem(c->mediaId);
+        const auto known = m_mediaWords.constFind(c->mediaId);
+        if (!m || !m->hasAudio || known == m_mediaWords.constEnd())
+            continue;
+        const QString key = QStringLiteral("%1/%2/%3/%4").arg(c->mediaId).arg(c->in).arg(c->out).arg(c->position);
+        if (seen.contains(key))
+            continue; // the detached audio repeats the video clip
+        seen.insert(key);
+        const qint64 from = qint64(c->in * 1000.0 / f), to = qint64((c->out + 1) * 1000.0 / f);
+        const qint64 shift = qint64(std::llround((c->position - c->in) * 1000.0 / f));
+        for (Captions::Word w : known.value()) {
+            const qint64 mid = (w.startMs + w.endMs) / 2;
+            if (mid < from || mid >= to)
+                continue;
+            w.startMs += shift;
+            w.endMs += shift;
+            out.append(w);
+        }
+    }
+    std::stable_sort(out.begin(), out.end(), [](const Captions::Word &a, const Captions::Word &b) { return a.startMs < b.startMs; });
+    return out;
+}
+
+QList<Editor::SpeechJob> Editor::speechJobs() const
+{
+    const Timeline &tl = m_doc.timeline;
+    const double f = std::max(1.0, fps());
+    for (const Track &t : tl.tracks)
+        for (const Clip &c : t.clips)
+            if (Captions::isCaption(c))
+                return {}; // the captions are the speech
+    QHash<QString, SpeechJob> byMedia;
+    QStringList order;
+    for (const Clip *c : clipsByPosition(tl)) {
+        if (c->kind != QLatin1String("media") || std::abs(c->speed - 1.0) > 1e-6 || !c->speedRamp.isEmpty())
+            continue;
+        const MediaItem *m = mediaItem(c->mediaId);
+        if (!m || !m->hasAudio || m->path.isEmpty())
+            continue;
+        const qint64 from = qint64(c->in * 1000.0 / f), to = qint64((c->out + 1) * 1000.0 / f);
+        bool known = false;
+        for (const Captions::Word &w : m_mediaWords.value(c->mediaId))
+            known |= w.endMs > from && w.startMs < to;
+        if (known)
+            continue;
+        if (!byMedia.contains(m->id)) {
+            byMedia.insert(m->id, {m->id, m->path, from, to - from});
+            order << m->id;
+        } else {
+            SpeechJob &j = byMedia[m->id];
+            const qint64 end = std::max(j.startMs + j.lengthMs, to);
+            j.startMs = std::min(j.startMs, from);
+            j.lengthMs = end - j.startMs;
+        }
+    }
+    QList<SpeechJob> jobs;
+    for (const QString &id : order) {
+        SpeechJob j = byMedia.value(id);
+        j.startMs = std::max<qint64>(0, j.startMs - 500);
+        j.lengthMs = std::min<qint64>(j.lengthMs + 1000, 60 * 60 * 1000);
+        jobs.append(j);
+    }
+    return jobs;
+}
+
+bool Editor::voiceSource(QString *mediaId, QString *path) const
+{
+    QString bestId;
+    qint64 bestMs = 0;
+    for (const Clip *c : clipsByPosition(m_doc.timeline)) {
+        if (c->kind != QLatin1String("media"))
+            continue;
+        const MediaItem *m = mediaItem(c->mediaId);
+        if (!m || !m->hasAudio || m->path.isEmpty())
+            continue;
+        qint64 ms = 0;
+        for (const Captions::Word &w : m_mediaWords.value(c->mediaId))
+            ms += w.endMs - w.startMs;
+        if (ms > bestMs) {
+            bestMs = ms;
+            bestId = m->id;
+        }
+    }
+    if (bestId.isEmpty())
+        return false;
+    if (mediaId)
+        *mediaId = bestId;
+    if (path)
+        *path = mediaItem(bestId)->path;
+    return true;
+}
+
+QImage Editor::stillAt(int frame, int longSide) const
+{
+    // at the project's size (capped to Full HD), not the preview's
+    const double scale = std::min(1.0, std::max(1, longSide) / double(std::max(1, std::max(m_settings.width, m_settings.height))));
+    PlanOptions o;
+    o.useProxies = false;
+    o.storeModel = false;
+    o.scale = scale;
+    Planner p(m_settings, m_media, m_doc.sequences, o);
+    return m_player->renderFullStill(p.plan(m_doc.timeline), frame, scale);
+}
 
 void Editor::setStatus(const QString &s)
 {

@@ -38,6 +38,11 @@ class Scopes;
 class Recorder;
 class Transcriber;
 class ShortsGenerator;
+class MetadataGenerator;
+class Dubber;
+namespace Studio::Metadata {
+struct Input;
+}
 namespace Studio::Reframe {
 struct Sample;
 }
@@ -91,6 +96,8 @@ class Editor : public QObject
     Q_PROPERTY(QObject *recorder READ recorderObject CONSTANT)
     Q_PROPERTY(QObject *transcriber READ transcriberObject CONSTANT)
     Q_PROPERTY(QObject *shorts READ shortsObject CONSTANT)
+    Q_PROPERTY(QObject *metadata READ metadataObject CONSTANT)
+    Q_PROPERTY(QObject *dubber READ dubberObject CONSTANT)
     Q_PROPERTY(QVariantList captionStyles READ captionStyles CONSTANT)
     Q_PROPERTY(QVariantMap captionTrackStyle READ captionTrackStyle NOTIFY documentChanged)
     Q_PROPERTY(bool hasCaptions READ hasCaptions NOTIFY documentChanged)
@@ -170,6 +177,8 @@ public:
     Transcriber *transcriber() const { return m_transcriber; }
     QObject *transcriberObject() const;
     QObject *shortsObject() const;
+    QObject *metadataObject() const;
+    QObject *dubberObject() const;
     QVariantList captionStyles() const;
     QVariantMap captionTrackStyle() const;
     bool hasCaptions() const;
@@ -179,6 +188,35 @@ public:
     double sourceAspect() const { return m_sourceAspect; }
     // Words of a media file (file time), for the source viewer's captions
     void rememberWords(const QString &mediaId, const QList<Studio::Captions::Word> &words);
+    // ---- Publishing metadata (see metadata.h, src/app/metadata.h)
+    // What the metadata writer knows about the project: the words spoken on the
+    // main timeline (captions, else the transcripts known for its media), the
+    // text shown on screen and the markers as chapters.
+    Studio::Metadata::Input metadataInput() const;
+    // The first clip with speech on the main timeline that has no transcript yet:
+    // its media, file and the stretch it plays. False when there is none.
+    bool speechSource(QString *mediaId, QString *path, qint64 *startMs, qint64 *lengthMs) const;
+    // ---- Dubbing (see dubbing.h, src/app/dubber.h)
+    // The words of the main timeline in timeline time: the captions on it, else the
+    // transcripts known for the media it plays (clips at normal speed only).
+    QList<Studio::Captions::Word> timelineWords() const;
+    // Media on the main timeline whose speech is not known yet, one job per file
+    struct SpeechJob {
+        QString mediaId;
+        QString path;
+        qint64 startMs = 0;
+        qint64 lengthMs = 0;
+    };
+    QList<SpeechJob> speechJobs() const;
+    // The known words of a media file, in file time
+    QList<Studio::Captions::Word> mediaWords(const QString &mediaId) const;
+    // The media on the timeline with the most known speech: where the voice is taken from
+    bool voiceSource(QString *mediaId, QString *path) const;
+    // Imports an audio file and lays it from the start on a new audio track with this name
+    void placeDubTrack(const QString &path, const QString &name);
+    // A frame of the main timeline as the export draws it, `longSide` pixels on its longer
+    // side (the project size at most); null when it cannot be rendered
+    QImage stillAt(int frame, int longSide) const;
     // Writes an ASS script to the captions cache (named by its content) and returns its path
     static QString cacheCaptions(const QString &ass);
 
@@ -431,6 +469,8 @@ private:
     Recorder *m_recorder;
     Transcriber *m_transcriber;
     ShortsGenerator *m_shorts;
+    MetadataGenerator *m_metadata;
+    Dubber *m_dubber;
     QString m_captionClip;  // clip being transcribed for captions
     QString m_captionStyleId;
 };
