@@ -677,7 +677,19 @@ void Dubber::translateNext()
     if (m_batchStart >= m_work.size()) {
         if (m_untranslated > 0)
             addNotice(tr("%1: %n sentence(s) could not be translated and stay in the original language.", nullptr, m_untranslated).arg(m_lang->name));
-        startSynth();
+        // Ollama keeps the model in video memory for minutes after the last request:
+        // free it first, or the voice engine finds the GPU full and falls back to the
+        // CPU (hours instead of minutes)
+        QNetworkRequest unload(ollamaUrl(QStringLiteral("/api/generate")));
+        unload.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+        unload.setTransferTimeout(10000);
+        QNetworkReply *r = m_network->post(unload, QJsonDocument(QJsonObject{{QStringLiteral("model"), m_model},
+                                                                             {QStringLiteral("keep_alive"), 0}}).toJson(QJsonDocument::Compact));
+        connect(r, &QNetworkReply::finished, this, [this, r]() {
+            r->deleteLater();
+            if (m_running)
+                startSynth();
+        });
         return;
     }
     // up to 10 sentences or ~1500 characters at a time

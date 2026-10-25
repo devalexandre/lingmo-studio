@@ -180,9 +180,16 @@ class Voice:
             return want
         if torch.cuda.is_available():
             try:
-                free, _ = torch.cuda.mem_get_info()
-                if free >= 4.2e9:
-                    return "cuda"
+                # another program (an Ollama model still loaded, a game) may be freeing
+                # the GPU right now: give it up to 30 s before falling back to the CPU
+                import time
+
+                free = 0
+                for _ in range(16):
+                    free, _total = torch.cuda.mem_get_info()
+                    if free >= 4.2e9:
+                        return "cuda"
+                    time.sleep(2)
                 log("only %.1f GB of video memory free: using the CPU (much slower)" % (free / 1e9))
             except Exception:  # noqa: BLE001
                 return "cuda"
