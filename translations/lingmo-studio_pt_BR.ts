@@ -736,6 +736,18 @@
 <context>
     <name>DubDialog</name>
     <message>
+        <source>The voice engine is installed, but the graphics card&apos;s memory is taken by another program, such as an AI model in Ollama or a game. Free it to dub at full speed; otherwise the voice runs on the CPU, many times slower.</source>
+        <translation>O motor de voz está instalado, mas a memória da placa de vídeo está ocupada por outro programa, como um modelo de IA no Ollama ou um jogo. Libere a memória para dublar na velocidade máxima; senão a voz roda no processador, muitas vezes mais devagar.</translation>
+    </message>
+    <message>
+        <source>Free Ollama&apos;s memory</source>
+        <translation>Liberar memória do Ollama</translation>
+    </message>
+    <message>
+        <source>Check again</source>
+        <translation>Verificar de novo</translation>
+    </message>
+    <message>
         <source>Dub in another language</source>
         <translation>Dublar em outro idioma</translation>
     </message>
@@ -854,6 +866,14 @@
 </context>
 <context>
     <name>Dubber</name>
+    <message>
+        <source>%1 · %2 is busy</source>
+        <translation>%1 · %2 ocupada</translation>
+    </message>
+    <message>
+        <source>graphics card</source>
+        <translation>placa de vídeo</translation>
+    </message>
     <message>
         <source>The speech could not be transcribed: %1</source>
         <translation>Não foi possível transcrever a fala: %1</translation>

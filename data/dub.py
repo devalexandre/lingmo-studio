@@ -134,17 +134,33 @@ def cmd_check(_args):
         import torch
 
         info["torch"] = torch.__version__
-        info["cuda"] = bool(torch.cuda.is_available())
-        if info["cuda"]:
-            free, total = torch.cuda.mem_get_info()
-            info["gpu"] = torch.cuda.get_device_name(0)
-            info["vramGb"] = round(total / 1e9, 1)
-            info["freeVramGb"] = round(free / 1e9, 1)
-            info["device"] = "cuda"
     except Exception as e:  # noqa: BLE001
         info["problem"] = "torch: %s" % e
         emit("ready", ready=False, **info)
         return 0
+    # The engine is installed whatever the GPU says: a full card (an Ollama model or a
+    # game holding the memory) is reported apart, not as a missing install
+    try:
+        info["cuda"] = bool(torch.cuda.is_available())
+        if info["cuda"]:
+            info["device"] = "cuda"
+            free, total = torch.cuda.mem_get_info()
+            info["gpu"] = torch.cuda.get_device_name(0)
+            info["vramGb"] = round(total / 1e9, 1)
+            info["freeVramGb"] = round(free / 1e9, 1)
+            info["gpuBusy"] = free < 4.2e9
+    except Exception as e:  # noqa: BLE001
+        info["gpuBusy"] = True
+        info["gpuNote"] = str(e).splitlines()[0] if str(e) else "CUDA error"
+        try:
+            out = subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
+                                 capture_output=True, text=True, timeout=10).stdout.strip().splitlines()
+            if out:
+                name, mib = out[0].rsplit(",", 1)
+                info["gpu"] = name.strip()
+                info["vramGb"] = round(float(mib) / 1024, 1)
+        except Exception:  # noqa: BLE001
+            pass
     try:
         import inspect
 

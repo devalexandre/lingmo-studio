@@ -27,6 +27,7 @@
 #include "editor.h"
 
 #include <QObject>
+#include <functional>
 #include <QPointer>
 #include <QProcess>
 #include <QVariantList>
@@ -42,6 +43,8 @@ class Dubber : public QObject
     Q_PROPERTY(bool engineReady READ engineReady NOTIFY engineChanged)
     Q_PROPERTY(QString engineSummary READ engineSummary NOTIFY engineChanged)
     Q_PROPERTY(bool onGpu READ onGpu NOTIFY engineChanged)
+    // installed, but the video memory is taken by another program (an Ollama model, a game)
+    Q_PROPERTY(bool gpuBusy READ gpuBusy NOTIFY engineChanged)
     Q_PROPERTY(bool installing READ installing NOTIFY installChanged)
     Q_PROPERTY(QString installMessage READ installMessage NOTIFY installChanged)
     Q_PROPERTY(bool installFailed READ installFailed NOTIFY installChanged)
@@ -67,6 +70,7 @@ public:
     bool engineReady() const { return m_ready; }
     QString engineSummary() const;
     bool onGpu() const { return m_ready && m_device == QLatin1String("cuda"); }
+    bool gpuBusy() const { return m_ready && m_gpuBusy; }
     bool installing() const { return m_install != nullptr; }
     QString installMessage() const { return m_installMessage; }
     bool installFailed() const { return m_installFailed; }
@@ -89,6 +93,8 @@ public:
     QVariantList results() const { return m_results; }
 
     Q_INVOKABLE void checkEngine();
+    // Unloads every Ollama model from the video memory, then checks the engine again
+    Q_INVOKABLE void freeGpu();
     Q_INVOKABLE void installEngine();
     Q_INVOKABLE void cancelInstall();
     Q_INVOKABLE void start();
@@ -122,6 +128,7 @@ private:
     void translateNext();
     void sendTranslation(const QList<int> &ids, bool retry);
     void startSynth();
+    void unloadOllama(std::function<void()> then);
     void synthFinished(int code);
     void assemble(const QVariantMap &synthResult);
     void encode(const QString &wav, double seconds);
@@ -148,6 +155,7 @@ private:
     bool m_ready = false;
     bool m_v3 = false;
     QString m_device;
+    bool m_gpuBusy = false;
     QString m_gpu;
     double m_vram = 0;
     QString m_problem;

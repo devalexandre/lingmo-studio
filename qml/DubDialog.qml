@@ -103,6 +103,22 @@ Dialog {
                         text: qsTr("Cloning a voice needs Chatterbox (open source, MIT licence) with PyTorch and a 3 GB voice model: about 9 GB on disk, installed once into your home folder. Everything then runs on this computer.")
                     }
                     Body {
+                        visible: dialog.dub.gpuBusy
+                        text: qsTr("The voice engine is installed, but the graphics card's memory is taken by another program, such as an AI model in Ollama or a game. Free it to dub at full speed; otherwise the voice runs on the CPU, many times slower.")
+                    }
+                    RowLayout {
+                        visible: dialog.dub.gpuBusy && !dialog.dub.engineChecking
+                        spacing: 8
+                        StudioButton {
+                            text: qsTr("Free Ollama's memory")
+                            onClicked: dialog.dub.freeGpu()
+                        }
+                        StudioButton {
+                            text: qsTr("Check again")
+                            onClicked: dialog.dub.checkEngine()
+                        }
+                    }
+                    Body {
                         visible: dialog.dub.engineReady && !dialog.dub.onGpu
                         text: qsTr("No usable graphics card was found, so the voice runs on the CPU: about 12 times slower than the speech lasts. It works, but a card with 6 GB of video memory is far faster.")
                     }

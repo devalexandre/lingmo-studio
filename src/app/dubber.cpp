@@ -225,6 +225,8 @@ QString Dubber::engineSummary() const
     if (!m_ready)
         return m_problem.isEmpty() ? tr("Not installed") : m_problem;
     const QString model = m_v3 ? QStringLiteral("Chatterbox Multilingual V3") : QStringLiteral("Chatterbox Multilingual V2");
+    if (m_device == QLatin1String("cuda") && m_gpuBusy)
+        return tr("%1 · %2 is busy").arg(model, m_gpu.isEmpty() ? tr("graphics card") : m_gpu);
     if (m_device == QLatin1String("cuda"))
         return tr("%1 · %2 (%3 GB)").arg(model, m_gpu, QString::number(m_vram, 'f', 0));
     return tr("%1 · CPU (slow)").arg(model);
@@ -263,6 +265,7 @@ void Dubber::checkEngine()
             m_gpu = o.value(QStringLiteral("gpu")).toString();
             m_vram = o.value(QStringLiteral("vramGb")).toDouble();
             m_problem = o.value(QStringLiteral("problem")).toString();
+            m_gpuBusy = o.value(QStringLiteral("gpuBusy")).toBool();
         }
         if (!m_ready && m_problem.isEmpty())
             m_problem = tr("The voice engine does not start. Install it again.");
@@ -279,6 +282,43 @@ void Dubber::checkEngine()
     });
     p->start(py, {sc, QStringLiteral("check")});
     timeout->start(120 * 1000);
+}
+
+void Dubber::unloadOllama(std::function<void()> then)
+{
+    // every loaded model (the translation one and any other app's), each with keep_alive 0
+    QNetworkRequest ps(ollamaUrl(QStringLiteral("/api/ps")));
+    ps.setTransferTimeout(5000);
+    QNetworkReply *list = m_network->get(ps);
+    connect(list, &QNetworkReply::finished, this, [this, list, then]() {
+        list->deleteLater();
+        const QJsonArray models = QJsonDocument::fromJson(list->readAll()).object().value(QStringLiteral("models")).toArray();
+        if (models.isEmpty()) {
+            then();
+            return;
+        }
+        auto pending = std::make_shared<int>(models.size());
+        for (const QJsonValue &m : models) {
+            QNetworkRequest unload(ollamaUrl(QStringLiteral("/api/generate")));
+            unload.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+            unload.setTransferTimeout(10000);
+            QNetworkReply *r = m_network->post(unload, QJsonDocument(QJsonObject{{QStringLiteral("model"), m.toObject().value(QStringLiteral("name")).toString()},
+                                                                                 {QStringLiteral("keep_alive"), 0}}).toJson(QJsonDocument::Compact));
+            connect(r, &QNetworkReply::finished, this, [r, pending, then]() {
+                r->deleteLater();
+                if (--*pending == 0)
+                    then();
+            });
+        }
+    });
+}
+
+void Dubber::freeGpu()
+{
+    unloadOllama([this]() {
+        // the driver needs a moment to hand the memory back
+        QTimer::singleShot(1500, this, &Dubber::checkEngine);
+    });
 }
 
 void Dubber::installEngine()
@@ -677,16 +717,9 @@ void Dubber::translateNext()
     if (m_batchStart >= m_work.size()) {
         if (m_untranslated > 0)
             addNotice(tr("%1: %n sentence(s) could not be translated and stay in the original language.", nullptr, m_untranslated).arg(m_lang->name));
-        // Ollama keeps the model in video memory for minutes after the last request:
-        // free it first, or the voice engine finds the GPU full and falls back to the
-        // CPU (hours instead of minutes)
-        QNetworkRequest unload(ollamaUrl(QStringLiteral("/api/generate")));
-        unload.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-        unload.setTransferTimeout(10000);
-        QNetworkReply *r = m_network->post(unload, QJsonDocument(QJsonObject{{QStringLiteral("model"), m_model},
-                                                                             {QStringLiteral("keep_alive"), 0}}).toJson(QJsonDocument::Compact));
-        connect(r, &QNetworkReply::finished, this, [this, r]() {
-            r->deleteLater();
+        // Ollama keeps models in video memory for minutes after the last request: free
+        // them first, or the voice engine finds the GPU full and falls back to the CPU
+        unloadOllama([this]() {
             if (m_running)
                 startSynth();
         });
