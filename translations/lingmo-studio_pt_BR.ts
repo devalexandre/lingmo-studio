@@ -836,8 +836,8 @@
         <translation>Coloca a dublagem em uma nova faixa de áudio para ouvir junto com a imagem</translation>
     </message>
     <message>
-        <source>To publish: YouTube Studio › Content › your video › Languages › Add language › Add dub, and upload the MP3 (or the WAV). YouTube may ask you to say that the audio is AI-generated; check its current rules. Chatterbox marks its audio with an inaudible watermark.</source>
-        <translation>Para publicar: YouTube Studio › Conteúdo › seu vídeo › Idiomas › Adicionar idioma › Adicionar dublagem, e envie o MP3 (ou o WAV). O YouTube pode pedir que você informe que o áudio foi gerado por IA; confira as regras atuais. O Chatterbox marca seu áudio com uma marca d&apos;água inaudível.</translation>
+        <source>To publish: YouTube Studio › Content › your video › Languages › Add language › Add dub, and upload the MP3 (or the WAV). YouTube may ask you to say that the audio is AI-generated; check its current rules.</source>
+        <translation>Para publicar: YouTube Studio › Conteúdo › seu vídeo › Idiomas › Adicionar idioma › Adicionar dublagem, e envie o MP3 (ou o WAV). O YouTube pode pedir que você informe que o áudio foi gerado por IA; confira as regras atuais.</translation>
     </message>
     <message>
         <source>The text is translated by the AI model chosen in Settings › AI. Nothing leaves this computer.</source>

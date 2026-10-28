@@ -58,7 +58,7 @@ with the Lingmo interface (Qt 6 / QML, `LingmoUI.CompatibleModule`).
   into `~/.local/share/lingmo/dub-venv` from the dialog (needs `uv` or Python
   3.10–3.12; `git` for the V3 build, else the stable V2). On a CPU it takes ~12×
   the length of the speech; a card with 6 GB of video memory is far faster.
-  Chatterbox marks its output with an inaudible watermark.
+  Nothing is written into the audio (Chatterbox's watermark is turned off).
 * **Title, description and thumbnail** (Deliver › the button under the SRT
   export) — the words spoken on the timeline (captions, known transcripts, or
   a new Whisper run) go to the Ollama model chosen in Settings › AI, which

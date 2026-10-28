@@ -333,7 +333,7 @@ Dialog {
             }
             Body {
                 visible: dialog.dub.results.length > 0
-                text: qsTr("To publish: YouTube Studio › Content › your video › Languages › Add language › Add dub, and upload the MP3 (or the WAV). YouTube may ask you to say that the audio is AI-generated; check its current rules. Chatterbox marks its audio with an inaudible watermark.")
+                text: qsTr("To publish: YouTube Studio › Content › your video › Languages › Add language › Add dub, and upload the MP3 (or the WAV). YouTube may ask you to say that the audio is AI-generated; check its current rules.")
             }
         }
     }

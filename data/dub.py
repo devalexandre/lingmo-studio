@@ -38,6 +38,14 @@ import wave
 SR = 24000  # Chatterbox's sample rate
 
 
+class NoWatermark:
+    """Chatterbox stamps its output with Perth's inaudible watermark: Lingmo writes nothing
+    into the audio, so the user can publish it wherever they like."""
+
+    def apply_watermark(self, wav, sample_rate=None):
+        return wav
+
+
 def emit(event, **fields):
     fields["event"] = event
     sys.stdout.write(json.dumps(fields, ensure_ascii=False) + "\n")
@@ -227,6 +235,7 @@ class Voice:
         # a plain string: chatterbox compares `device in ["cpu", "mps"]` to pick map_location,
         # which a torch.device never matches (the CUDA-saved weights then fail to load on the CPU)
         self.model = ChatterboxMultilingualTTS.from_pretrained(device=self.device, **kwargs)
+        self.model.watermarker = NoWatermark()
         self.prepared = None
         log("model ready in %.0f s" % (__import__("time").time() - started))
 

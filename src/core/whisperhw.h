@@ -14,7 +14,11 @@
 // file and whisperhw.cpp exist in both, byte for byte the same:
 //   lingmo-studio/src/core/whisperhw.{h,cpp}
 //   lingmo-settings/src/whisperhw.{h,cpp}
-// Change both together; each repository has its own tests (tst_whisperhw).
+//   lingmo-voicestudio/src/common/whisperhw.{h,cpp}   (dictation's model choice)
+//   lingmo-translate/src/whisperhw.{h,cpp}            (under hwprofile.{h,cpp})
+// Change them all together; each repository has its own tests (tst_whisperhw).
+// The recommendation for the voice and translation apps as a whole is built on
+// this in hwprofile.{h,cpp} (~/.config/lingmoos/hardware.conf).
 //
 // whisper.cpp (Arch package whisper-cpp) loads ggml's compute backends at run
 // time from /usr/lib/ggml: the ggml package ships only CPU variants
